@@ -1,0 +1,23 @@
+{
+  "name": "agentic-starter",
+  "version": "1.0.0",
+  "description": "Sifirdan agentic sistem icin yeniden-kullanilabilir starter.",
+  "type": "module",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js",
+    "demo": "node src/demo.js"
+  },
+  "dependencies": {
+    "@langchain/anthropic": "0.3.24",
+    "@langchain/core": "0.3.66",
+    "@langchain/langgraph": "0.2.74",
+    "express": "^4.21.0",
+    "express-rate-limit": "^7.4.0",
+    "zod": "3.23.8"
+  },
+  "overrides": {
+    "@langchain/core": "0.3.66"
+  }
+}
