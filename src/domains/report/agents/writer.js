@@ -10,12 +10,14 @@
 // hierher zurück; der Zähler wächst also, und das harte Limit greift wirklich.
 
 import { llmText } from "../../../kernel/llm/adapter.js";
+import { modelFor } from "../../../kernel/config/env.js";
 import { prompts } from "../prompts.js";
 
 export async function writerNode(state) {
   const draft = await llmText(
     prompts.writer.system,
     prompts.writer.user(state),
+    modelFor("writer"),
   );
 
   return {

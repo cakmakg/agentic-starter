@@ -17,11 +17,14 @@ if [ -f "$GEHIRN_DIR/kern.md" ]; then
   GEHIRN_KERN=$(cat "$GEHIRN_DIR/kern.md" 2>/dev/null)
 fi
 
-# --- Bruecke zur letzten Sitzung: Block "## Sitzung:" bis vor "## Fruehere".
+# --- Bruecke zur letzten Sitzung: nur der oberste Block "## Sitzung:" bis vor die
+#     naechste "## Sitzung:"- oder "## Fruehere"-Ueberschrift. Ohne den ersten Check
+#     wuerde aktiv=1 beim naechsten Sitzungskopf nicht zurueckgesetzt und mehrere
+#     Sitzungen wuerden zu einem Block verschmelzen.
 GEHIRN_LETZTE=""
 if [ -f "$GEHIRN_DIR/letzte-sitzung.md" ]; then
   GEHIRN_LETZTE=$(awk '
-    /^## Sitzung:/ { aktiv = 1 }
+    /^## Sitzung:/ { if (aktiv) exit; aktiv = 1 }
     aktiv && /^## Fr/ { exit }
     aktiv { print }
   ' "$GEHIRN_DIR/letzte-sitzung.md" 2>/dev/null | sed -n '1,50p')

@@ -8,14 +8,23 @@
 
 import { env } from "../config/env.js";
 
-// Beispielpreise Sonnet 4.6: Input $3 / Output $15 (je 1 Mio. Token).
-const PRICE = { in: 3 / 1_000_000, out: 15 / 1_000_000 };
+// Beispielpreise je 1 Mio. Token, pro Modell-ID. Ein Rollen-Override (z.B.
+// billigerer Critic über MODEL_CRITIC) muss auch beim Preis ankommen — sonst
+// zählt Metrik 3.6 einen Haiku-Aufruf zum Sonnet-Preis und die Einsparung ist
+// unsichtbar. Unbekanntes oder fehlendes Modell fällt auf env.model zurück —
+// das ist genau das bisherige Verhalten (Bestandstests bleiben unverändert).
+const PRICES = {
+  "claude-sonnet-4-6": { in: 3 / 1_000_000, out: 15 / 1_000_000 },
+  "claude-haiku-4-5": { in: 1 / 1_000_000, out: 5 / 1_000_000 },
+};
+const DEFAULT_PRICE = PRICES[env.model] || PRICES["claude-sonnet-4-6"];
 
 let monthlySpendUsd = 0;
 let throttled = false; // Sobald true, bricht der Guardrail den nächsten Workflow ab.
 
-export function trackUsage({ inputTokens = 0, outputTokens = 0 }) {
-  const cost = inputTokens * PRICE.in + outputTokens * PRICE.out;
+export function trackUsage({ inputTokens = 0, outputTokens = 0, model }) {
+  const price = (model && PRICES[model]) || DEFAULT_PRICE;
+  const cost = inputTokens * price.in + outputTokens * price.out;
   monthlySpendUsd += cost;
   if (monthlySpendUsd >= env.monthlyBudgetUsd) throttled = true;
   return cost;

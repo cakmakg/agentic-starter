@@ -33,6 +33,24 @@ test("Output-Token sind fünfmal so teuer wie Input-Token", () => {
   assert.ok(Math.abs(aus - ein * 5) < 1e-12);
 });
 
+test("trackUsage benutzt bei übergebenem Modell dessen eigenen Preis (Haiku 4.5)", () => {
+  const betrag = trackUsage({
+    inputTokens: 1_000_000,
+    outputTokens: 0,
+    model: "claude-haiku-4-5",
+  });
+  assert.equal(betrag, 1, "Haiku 4.5 kostet 1 $ / Mio. Input-Token, nicht 3 $");
+});
+
+test("Ein unbekanntes Modell fällt sicher auf den Standardpreis zurück", () => {
+  const betrag = trackUsage({
+    inputTokens: 1_000_000,
+    outputTokens: 0,
+    model: "modell-nicht-in-der-tabelle",
+  });
+  assert.equal(betrag, 3, "kein Crash, Default-Preis wie ohne model-Angabe");
+});
+
 test("Fehlende Felder werden als null gezählt, nicht als NaN", () => {
   assert.equal(trackUsage({}), 0);
   assert.equal(cost.spend(), 0);

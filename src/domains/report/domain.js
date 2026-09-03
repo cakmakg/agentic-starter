@@ -15,6 +15,7 @@ import { createRouter } from "../../kernel/graph/routing.js";
 import { createGuardrail } from "../../kernel/security/guardrail.js";
 import { keepIfFilled, lastWins } from "../../kernel/state/reducers.js";
 import { llmStructured } from "../../kernel/llm/adapter.js";
+import { modelFor } from "../../kernel/config/env.js";
 
 import { prompts } from "./prompts.js";
 import { researcherNode } from "./agents/researcher.js";
@@ -133,7 +134,8 @@ const routingSchema = z.object({
   reason: z.string(),
 });
 
-// Schicht 2 des Routings: nur erreichbar, wenn keine Bremse greift.
+// Schicht 2 des Routings: nur erreichbar, wenn keine Bremse greift — seltener
+// Pfad, deshalb ein guter Kandidat für ein billigeres Modell (modelFor).
 const llmRouter = (state) =>
   llmStructured(
     routingSchema,
@@ -143,6 +145,7 @@ const llmRouter = (state) =>
       nextAgent: "END",
       reason: "mock: Zustand außerhalb der Bremsen, sicheres END",
     }),
+    modelFor("orchestrator"),
   );
 
 // ── Guardrail-Muster ─────────────────────────────────────────────────────

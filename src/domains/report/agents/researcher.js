@@ -8,10 +8,15 @@
 // fokussiert, und die Berechtigung lässt sich pro Plan vergeben.
 
 import { llmText } from "../../../kernel/llm/adapter.js";
+import { modelFor } from "../../../kernel/config/env.js";
 import { prompts } from "../prompts.js";
 
 export async function researcherNode(state) {
-  const research = await llmText(prompts.researcher.system, state.task);
+  const research = await llmText(
+    prompts.researcher.system,
+    state.task,
+    modelFor("researcher"),
+  );
   return {
     research: String(research),
     nextAgent: "orchestrator", // jeder Agent kehrt zum Hub zurück

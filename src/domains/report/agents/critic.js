@@ -8,6 +8,7 @@
 
 import { z } from "zod";
 import { llmStructured } from "../../../kernel/llm/adapter.js";
+import { modelFor } from "../../../kernel/config/env.js";
 import { prompts } from "../prompts.js";
 
 const criticSchema = z.object({
@@ -28,6 +29,9 @@ export async function criticNode(state) {
           ? "Ausreichend."
           : "Füge konkretere Beispiele hinzu.",
     }),
+    // Grader-Rolle: strukturell schon getrennt (sieht nie state.research/writer-
+    // Reasoning, siehe prompts.js), darf deshalb auch modellseitig billiger sein.
+    modelFor("critic"),
   );
 
   return {

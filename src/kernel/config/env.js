@@ -27,3 +27,11 @@ export const env = {
 // gemacht. So läuft das System auch ohne API-Schlüssel Ende zu Ende — die
 // Grundlage für deterministische Tests und Evaluationen.
 export const MOCK_LLM = !env.anthropicKey;
+
+// Erlaubt ein eigenes Modell pro Rolle (z.B. MODEL_CRITIC=claude-haiku-4-5),
+// damit ein billigerer Grader nicht denselben Preis zahlt wie der Autor. Kennt
+// bewusst KEINE Rollennamen — die Domäne entscheidet, wie ihre Rollen heißen
+// (ADR-0018: der Kern bleibt domänen-unwissend). Ohne Override greift env.model.
+export function modelFor(role) {
+  return process.env[`MODEL_${role.toUpperCase()}`] || env.model;
+}

@@ -23,34 +23,56 @@ function melde(aufruf) {
   for (const fn of beobachter) fn(aufruf);
 }
 
-let _model = null;
-async function getModel() {
-  if (_model) return _model;
+// Ein ChatAnthropic je Modell-ID — Rollen mit unterschiedlichem Modell (z.B.
+// billiger Critic) dürfen sich keine Instanz teilen.
+const _models = new Map();
+async function getModel(modelId) {
+  if (_models.has(modelId)) return _models.get(modelId);
   const { ChatAnthropic } = await import("@langchain/anthropic");
-  _model = new ChatAnthropic({
-    model: env.model,
+  const model = new ChatAnthropic({
+    model: modelId,
     apiKey: env.anthropicKey,
     temperature: 0.3,
   });
-  return _model;
+  _models.set(modelId, model);
+  return model;
 }
 
-// Freitext-Antwort.
-export async function llmText(systemPrompt, userPrompt) {
+// Freitext-Antwort. `model`: welche Modell-ID läuft (Default env.model) —
+// die Domäne entscheidet über modelFor(rolle), welches das ist.
+export async function llmText(systemPrompt, userPrompt, model = env.model) {
   if (MOCK_LLM) {
     const inputTokens = estTokens(systemPrompt + userPrompt);
-    const usd = trackUsage({ inputTokens, outputTokens: 60 });
-    melde({ inputTokens, outputTokens: 60, usd, art: "text", mock: true });
+    const usd = trackUsage({ inputTokens, outputTokens: 60, model });
+    melde({
+      inputTokens,
+      outputTokens: 60,
+      usd,
+      art: "text",
+      mock: true,
+      model,
+    });
     return mockText(userPrompt);
   }
-  const model = await getModel();
-  const res = await model.invoke([
+  const m = await getModel(model);
+  const res = await m.invoke([
     { role: "system", content: systemPrompt },
     { role: "user", content: userPrompt },
   ]);
   const u = res.usage_metadata || {};
-  const usd = trackUsage({ inputTokens: u.input_tokens, outputTokens: u.output_tokens });
-  melde({ usd, inputTokens: u.input_tokens, outputTokens: u.output_tokens, art: "text", mock: false });
+  const usd = trackUsage({
+    inputTokens: u.input_tokens,
+    outputTokens: u.output_tokens,
+    model,
+  });
+  melde({
+    usd,
+    inputTokens: u.input_tokens,
+    outputTokens: u.output_tokens,
+    art: "text",
+    mock: false,
+    model,
+  });
   return res.content;
 }
 
@@ -62,15 +84,23 @@ export async function llmStructured(
   systemPrompt,
   userPrompt,
   mockFactory,
+  model = env.model,
 ) {
   if (MOCK_LLM) {
     const inputTokens = estTokens(systemPrompt + userPrompt);
-    const usd = trackUsage({ inputTokens, outputTokens: 40 });
-    melde({ inputTokens, outputTokens: 40, usd, art: "structured", mock: true });
+    const usd = trackUsage({ inputTokens, outputTokens: 40, model });
+    melde({
+      inputTokens,
+      outputTokens: 40,
+      usd,
+      art: "structured",
+      mock: true,
+      model,
+    });
     return mockFactory();
   }
-  const model = await getModel();
-  const structured = model.withStructuredOutput(schema);
+  const m = await getModel(model);
+  const structured = m.withStructuredOutput(schema);
   const res = await structured.invoke([
     { role: "system", content: systemPrompt },
     { role: "user", content: userPrompt },
