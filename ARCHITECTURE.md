@@ -225,11 +225,15 @@ Produkt rückt vor die Veröffentlichung. Die folgende Liste steht in Ausführun
   das Harness der Schicht A (T3.3) stehen, das minimale CI ist geschrieben. Die Topologie hat
   sich beim Umzug nicht geändert — dieselben Tests lieferten davor und danach dasselbe
   Ergebnis. Offen bleibt nur der erste CI-Lauf.
-- **Phase 5** nimmt die Domäne `immobilien` auf (ADR-0020, vorgezogen durch ADR-0024) und
-  führt damit erstmals das Prüfkriterium aus ADR-0018 aus — beim Aufnehmen der Domäne
-  ändert sich unter `src/kernel/` **keine Zeile**. Dazu Persistenz (Checkpointer und
-  Artefakt-Store, mit `tenantId` nach ADR-0025), der erste echte Executor und ein
-  schlanker Genehmigungsbildschirm.
+- **Phase 5 hat die Domäne `immobilien` aufgenommen** (ADR-0020, vorgezogen durch
+  ADR-0024) und damit erstmals das Prüfkriterium aus ADR-0018 durchlaufen — beim
+  Aufnehmen der Domäne änderte sich unter `src/kernel/` **keine Zeile** (T10, verifiziert
+  2026-09-03). Das Skelett (`portfolioLoader → listingWriter ⇄ contractChecker →
+  listingStore → human_approval → delivery`, §6) läuft Ende-zu-Ende gegen eine
+  Entwicklungs-Fixture (`npm run demo:immobilien`). Offen bleiben Persistenz
+  (Checkpointer und Artefakt-Store, mit `tenantId` nach ADR-0025, T11), der erste echte
+  Executor, ein schlanker Genehmigungsbildschirm, und T12 — ein echter, von einer
+  Beraterin oder einem Berater genehmigter Lauf gegen einen echten Portfolio-Datensatz.
 - **Phase 4** stellt den MCP-Server daneben (§7, ADR-0022) — derselbe Kern, zweiter Kanal —
   und ergänzt die Judge-Maschine der Schicht B sowie die Fallstudie, die jetzt echte
   Zahlen hat.
@@ -261,7 +265,7 @@ flowchart TB
   end
   subgraph DO["domains/ — Bedeutung"]
     REP["report/"]
-    NXT["zweite Domaene · Phase 5"]
+    IMM["immobilien/ · Phase 5"]
   end
   AD -->|"benutzt"| KE
   REG -->|"liest Spezifikation"| DO
@@ -299,12 +303,20 @@ src/
 │   └── registry.js             Domänen-Registrierung — Konfiguration, kein Code
 │
 ├── domains/
-│   └── report/
-│       ├── domain.js           Spezifikation: Agenten, Bremsenreihenfolge, State-Felder
-│       ├── agents/             researcher · writer · critic · fileSaver · publisher
-│       ├── prompts.js          alle Prompts der Domäne an einer Stelle
-│       └── actions.js          erlaubte Aktionstypen + Payload-Schemata
-│                               (contract.js — Ausgabevertrag, ADR-0019 — erst Schicht B)
+│   ├── report/
+│   │   ├── domain.js           Spezifikation: Agenten, Bremsenreihenfolge, State-Felder
+│   │   ├── agents/             researcher · writer · critic · fileSaver · publisher
+│   │   ├── prompts.js          alle Prompts der Domäne an einer Stelle
+│   │   └── actions.js          erlaubte Aktionstypen + Payload-Schemata
+│   │                           (contract.js — Ausgabevertrag, ADR-0019 — erst Schicht B)
+│   └── immobilien/             ✅ Phase 5 (T10) — zweite Domäne, 0 Zeilen unter kernel/
+│       ├── domain.js           Spezifikation: portfolioLoader → listingWriter ⇄
+│       │                       contractChecker → listingStore → delivery
+│       ├── agents/             portfolioLoader · listingWriter · contractChecker ·
+│       │                       listingStore · delivery
+│       ├── prompts.js          Prompts je Agent/Portal
+│       ├── actions.js          Whitelist: PUBLISH_LISTING
+│       └── data/portfolioFixture.js  Entwicklungs-Fixture — KEIN echter Datensatz (T12 offen)
 │
 ├── adapters/
 │   ├── http/
@@ -313,6 +325,7 @@ src/
 │
 └── bin/
     ├── demo.js
+    ├── demoImmobilien.js       ✅ Phase 5 — golden path der Domäne immobilien
     └── serve.js
 ```
 
@@ -336,7 +349,8 @@ Behauptung aus ADR-0018 verloren, ohne es zu merken.
 **Dieselben Tests liefern vor und nach dem Umzug dasselbe Ergebnis.** Damit ist er eine
 Refaktorierung im Wortsinn — keine Änderung, die sich als Aufräumen tarnt. Das zweite,
 längerfristige Kriterium steht in ADR-0018: eine zweite Domäne darf **null Zeilen** in
-Kerndateien ändern.
+Kerndateien ändern — **verifiziert in Phase 5 (T10, 2026-09-03):** die Domäne `immobilien`
+entstand als Geschwisterdatei zu `domains/report/`, `src/kernel/` blieb unangetastet.
 
 ## 7. MCP als Adapter
 

@@ -9,6 +9,12 @@ wiederholt.
 
 ## Regeln
 
+- **Regel:** Ändert eine Änderung Struktur, Philosophie oder Ziel des Projekts, werden
+  `README.md`, `CLAUDE.md`, `PRODUCT.md`, `ARCHITECTURE.md` **im selben Zug** geprüft und
+  aktualisiert — nicht erst auf Nachfrage. **Grund:** Nach dem Bau der Domäne `immobilien`
+  (Phase 5, T10) blieben alle vier stehen; `README.md` beschrieb die bereits gelöschte
+  flache `src/`-Struktur, `CLAUDE.md` behauptete, `domains/`/`adapters/` gäbe es noch nicht.
+
 - **Regel:** Keine Zahl in README oder Dokumenten, die nicht aus einem datierten Lauf in
   `evals/reports/` stammt. Was nicht gemessen wurde, trägt die Markierung „nicht gemessen" —
   nicht eine plausibel aussehende Zahl. **Grund:** Die übernommene Strategiedatei

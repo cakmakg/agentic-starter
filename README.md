@@ -52,6 +52,10 @@ npm run demo      # KEIN API-Schlüssel ERFORDERLICH — Mock-Modus zeigt den ko
 Für ein echtes LLM: `cp .env.example .env` → `ANTHROPIC_API_KEY` hinzufügen → erneut `npm run demo`.
 Als Server: `npm start` → `POST /api/run` (siehe unten).
 
+Zweite Domäne (Phase 5, gegen eine Entwicklungs-Fixture, kein echter Datensatz):
+`npm run demo:immobilien` — `portfolioLoader → listingWriter ⇄ contractChecker →
+listingStore → human_approval → delivery`.
+
 ---
 
 ## Der Kern: Das System wächst aus EINEM EINZIGEN AGENTEN
@@ -134,27 +138,30 @@ Graph-Topologie, MCP-Sequenz · [`docs/workflow.md`](docs/workflow.md) — HITL-
 
 ## Dateiübersicht
 
-### Quellcode (`src/`)
+### Quellcode (`src/`) — drei Ringe seit Phase 3 (ADR-0023)
 
 | Datei | Was sie lehrt |
 |---|---|
-| `state/graphState.js` | State + **Reducer-Auswahl** (Letzter-Wert vs. Aggregator/Schutzschalter) |
-| `agents/guardrail.js` | MOAT L1 — Eingabeschutz **ohne LLM** + Budget-Kill-Switch |
-| `agents/orchestrator.js` | **Hub** — BREMSEN + LLM-Routing + Post-Validierung |
-| `agents/researcher.js` | Agent #1 — Einzelverantwortung |
-| `agents/writer.js` + `critic.js` | Revisionsschleife + Zähler-Schutzschalter |
-| `agents/fileSaver.js` | Persistenz + HITL-Auslöser (`fileSaved`) |
-| `agents/publisher.js` | **Aktions-Isolation** — der Agent ruft keine API auf, sondern schreibt in die Queue |
-| `workflow/graph.js` | LangGraph-Topologie + bedingte Kanten + `interruptBefore` |
-| `workflow/runner.js` | Stream + **HITL Pause/Resume** (gleiche `thread_id`) |
-| `security/auth.js` | `x-api-key`, fail-closed |
-| `security/rateLimiter.js` | Endpoint-gestaffeltes Rate-Limit |
-| `security/actionQueue.js` | MOAT L4 — Whitelist + Payload-Validierung + Worker |
-| `lib/eventBus.js` | SSE + **Event-Buffering** (Lösung für Race-Condition) |
-| `services/costTracker.js` | token→USD + **automatischer Budget-Kill-Switch** |
-| `services/llm.js` | Einzelner LLM-Adapter + **Mock-Modus** |
-| `config/env.js` | Zentrales Einlesen der Umgebung |
-| `index.js` · `demo.js` | HTTP-Server · Ende-zu-Ende-Demo ohne HTTP |
+| `kernel/state/schema.js`, `reducers.js` | Kernfelder + **Reducer-Auswahl** (Letzter-Wert vs. Aggregator/Schutzschalter) |
+| `kernel/security/guardrail.js` | MOAT L1 — Eingabeschutz **ohne LLM** (Regex-Engine; Muster bringt die Domäne mit) |
+| `kernel/graph/routing.js` | Das **Verfahren** des dreischichtigen Routings (Bremsen der Domäne mitgebracht) |
+| `kernel/graph/build.js` | LangGraph-Topologie aus einer Domänen-Spezifikation + `interruptBefore` |
+| `kernel/graph/runner.js` | Stream + **HITL Pause/Resume** (gleiche `thread_id`) |
+| `kernel/security/auth.js` | `x-api-key`, fail-closed |
+| `kernel/security/rateLimiter.js` | Endpoint-gestaffeltes Rate-Limit |
+| `kernel/security/actionQueue.js` | MOAT L4 — Queue-Mechanik (Whitelist bringt die Domäne mit) |
+| `kernel/observability/eventBus.js` | SSE + **Event-Buffering** (Lösung für Race-Condition) |
+| `kernel/observability/trace.js` | Ein JSONL-Trace je Lauf (`evals/traces/`) |
+| `kernel/observability/costTracker.js` | token→USD + **automatischer Budget-Kill-Switch** |
+| `kernel/llm/adapter.js` | Einziger LLM-Adapter + **Mock-Modus** |
+| `kernel/registry.js` | Domänen-Registrierung — Konfiguration, kein Kernwissen (ADR-0018) |
+| `domains/report/` | Erste Domäne: `researcher → writer ⇄ critic → fileSaver → publisher` |
+| `domains/immobilien/` | Zweite Domäne (Phase 5, T10): `portfolioLoader → listingWriter ⇄ contractChecker → listingStore → delivery` |
+| `adapters/http/server.js` | HTTP-Routen — reiner Adapter über dem Kern |
+| `bin/demo.js` · `bin/demoImmobilien.js` | Ende-zu-Ende-Demo je Domäne, ohne HTTP |
+| `bin/serve.js` | HTTP-Server-Start |
+
+Vollständiger Zielbaum mit Begründung der Naht: [`ARCHITECTURE.md`](ARCHITECTURE.md) §6.
 
 ### Projektgerüst
 
@@ -169,8 +176,8 @@ Graph-Topologie, MCP-Sequenz · [`docs/workflow.md`](docs/workflow.md) — HITL-
 | [`ARCHITECTURE.md`](ARCHITECTURE.md) · [`DECISIONS.md`](DECISIONS.md) | Trade-offs und bekannte Grenzen · 25 festgehaltene Entscheidungen |
 | [`EVALS.md`](EVALS.md) | Evaluationsrahmen: zwei Schichten, Metriken mit Zähler und Nenner, Baseline |
 | `docs/` | Ablauf, Sicherheitsmodell, Entwicklungsprozess |
-| `tests/` | 11 Dateien, `node:test`, keine zusätzliche Abhängigkeit |
-| `evals/` | ⏳ Phase 3 — bis dahin nur `traces/` je Lauf |
+| `tests/` | `node:test`, 70 Tests, keine zusätzliche Abhängigkeit (`npm test`) |
+| `evals/` | Schicht-A-Harness + Baseline-Bericht (`npm run evals`); `traces/` je Lauf |
 
 ---
 
@@ -204,7 +211,7 @@ Domäne und echten Kunden nicht belegbar. Die Tabelle steht in Ausführungsreihe
 | 1 · Vertrag | Produkt- und Architekturvertrag, 25 ADRs | ✅ |
 | 2 · Stabilisieren | Goldener Pfad + minimaler Trace · Zeit-Baseline des manuellen Prozesses | 🟢 Defekte behoben, Trace grün; Kundenspur offen |
 | 3 · Messen | Tests, Evaluations-Baseline (Schicht A), minimales CI, Umzug in die Zielstruktur | ✅ T3–T6 grün, Umzug erfolgt |
-| 5 · Produkt | Erste echte Domäne, Persistenz, echter Executor, Genehmigungsbildschirm | ⏳ |
+| 5 · Produkt | Erste echte Domäne, Persistenz, echter Executor, Genehmigungsbildschirm | 🟡 Domäne `immobilien` als Skelett steht, T10 grün (`npm run demo:immobilien`); Persistenz, echter Executor, echter Lauf (T11/T12) offen |
 | 4 · Veröffentlichen | Schicht B, CI, Lizenz, Case Study, MCP-Server | ⏳ |
 | 6 · Skalieren | Mehrmandantenfähigkeit, zweite Domäne, Kontextstrategie | ⏳ nur bei einem zweiten Kunden |
 

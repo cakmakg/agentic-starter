@@ -72,13 +72,14 @@ ist bewusst: sie verhindert, dass zwei Gedächtnisse auseinanderdriften.
 | Sicherheitsmodell, Bedrohungsmodell | `docs/security-model.md` |
 | KI-gestützter Entwicklungsprozess, Aufgabenvorlage | `docs/development-process.md` |
 | Wie das Gedächtnis liest und schreibt, Wartungsrhythmus | `docs/development-process.md` |
-| Agentenverhalten und Prompts | `src/domains/report/agents/` · `src/domains/report/prompts.js` |
+| Agentenverhalten und Prompts | `src/domains/report/agents/` · `src/domains/immobilien/agents/` — je Domäne eine `prompts.js` |
 | Graph-Topologie, Pause und Fortsetzung | `src/kernel/graph/` |
-| Auth, Rate-Limit, Aktions-Isolation | `src/kernel/security/` (Mechanik) · `src/domains/report/actions.js` (Whitelist) |
+| Auth, Rate-Limit, Aktions-Isolation | `src/kernel/security/` (Mechanik) · `src/domains/<domäne>/actions.js` (Whitelist) |
 | LLM-Adapter, Mock-Modus, Kosten | `src/kernel/llm/` · `src/kernel/observability/costTracker.js` |
 | State-Schema und Reducer | `src/kernel/state/` — Kernfelder plus Felder der Domäne |
 | Tests | `tests/` — `node:test`, Aufruf `npm test` |
-| Domänen-Spezifikation, Bremsenreihenfolge | `src/domains/report/domain.js` · Registrierung `src/kernel/registry.js` |
+| Domänen-Spezifikation, Bremsenreihenfolge | `src/domains/report/domain.js` · `src/domains/immobilien/domain.js` · Registrierung `src/kernel/registry.js` |
+| Immobilien-Domäne: Portfolio-Vertrag, Zeit-Baseline | `docs/kundenerkundung-immobilien.md` |
 | Evaluations-Harness und Datensatz | `evals/` — Aufruf `npm run evals`, Grenzen in `evals/README.md` |
 | Offene Themen | `.gehirn/themen.md` |
 | Verbindliche Projektkonventionen | `.gehirn/regeln.md` |
@@ -99,10 +100,10 @@ Ab sofort entsteht **jede neue Datei direkt an ihrem Zielort** (ADR-0023,
 `src/domains/<domäne>/`, Außenkontakt nach `src/adapters/`. Es gibt keine vorläufige
 Ablage — eine später umgezogene Datei bricht den Vergleich zur Baseline.
 
-`src/kernel/` **existiert seit T2.5** — mit `src/kernel/observability/trace.js`, der ersten
-Datei am Zielort. `src/domains/` und `src/adapters/` gibt es noch nicht; sie entstehen
-ebenso mit ihrer ersten Datei. Die bestehenden 19 Dateien ziehen erst in Phase 3 um; bis
-dahin stehen alte und neue Ablage nebeneinander. Das ist beabsichtigt und kein Versehen.
+Der Zielbaum **existiert seit Phase 3** (ADR-0023, Umzug abgeschlossen): `src/kernel/`,
+`src/domains/` (mit `report/` und, seit Phase 5, `immobilien/`) und `src/adapters/`. Eine
+neue Domäne entsteht als Geschwisterdatei zu `domains/report/` bzw. `domains/immobilien/`
+und ändert **null Zeilen** unter `src/kernel/` (T10, verifiziert in Phase 5).
 
 Die Dateigrenze gilt für `src/kernel/` (≤ 20 Dateien, ADR-0021), nicht für `src/`
 insgesamt.
