@@ -1,0 +1,49 @@
+# Minimales CI — vorgezogen von Phase 4 nach Phase 3 (ADR-0024), weil es die
+# gesamte Phase 5 absichert. Es läuft ausschließlich in Schicht A: Mock-Modus,
+# deterministisch, kostenlos. KEIN ANTHROPIC_API_KEY, also auch kein Weg, hier
+# versehentlich Geld auszugeben.
+#
+# Schicht B (echtes Modell, kostenpflichtig) kommt in Phase 4 als eigener,
+# manuell ausgelöster Lauf — nicht bei jedem Push.
+
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  schicht-a:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+
+      # `npm ci` statt `npm install`: die Lockdatei entscheidet, nicht der Zufall.
+      # Zusammen mit dem sauberen Runner ist das der Nachweis für T7 —
+      # clone → install → demo auf einer frischen Maschine.
+      - name: Abhängigkeiten aus der Lockdatei
+        run: npm ci
+
+      - name: Tests (T3)
+        run: npm test
+
+      - name: Goldener Pfad (T1)
+        run: npm run demo
+
+      - name: Evaluationen Schicht A (T4, T5, T6)
+        run: npm run evals
+
+      # Der Bericht ist der eigentliche Nachweis. Er wird aufbewahrt, damit ein
+      # Lauf später noch prüfbar ist statt nur grün gewesen zu sein.
+      - name: Bericht aufbewahren
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: evals-bericht
+          path: evals/reports/
+          if-no-files-found: warn
