@@ -1,0 +1,79 @@
+// ── kernel/llm/adapter.js ────────────────────────────────────────────────
+// Der einzige LLM-Eingang. Alle Agenten laufen hier durch. Er leistet zweierlei:
+//   1) Strukturierte Ausgabe (withStructuredOutput) — eine auf ein Zod-Schema
+//      gezwungene, verlässliche Antwort.
+//   2) MOCK-MODUS — ohne ANTHROPIC_API_KEY wird kein echter Aufruf gemacht.
+//
+// Gründerlektion: Versteck das LLM hinter einem einzigen Adapter. Willst du morgen
+// Modell oder Anbieter wechseln, ändert sich eine Datei — nicht fünfzehn Agenten.
+
+import { env, MOCK_LLM } from "../config/env.js";
+import { trackUsage } from "../observability/costTracker.js";
+import { estTokens, mockText } from "./mock.js";
+
+// Beobachter je LLM-Aufruf. Ohne ihn ist Metrik 3.12 (Kontextwachstum) nicht
+// messbar: die Eingabe-Token eines einzelnen Aufrufs sind sonst nirgends sichtbar.
+// Der Kern sammelt nichts selbst — er meldet nur; wer misst, hört zu.
+const beobachter = new Set();
+export function onLlmCall(fn) {
+  beobachter.add(fn);
+  return () => beobachter.delete(fn);
+}
+function melde(aufruf) {
+  for (const fn of beobachter) fn(aufruf);
+}
+
+let _model = null;
+async function getModel() {
+  if (_model) return _model;
+  const { ChatAnthropic } = await import("@langchain/anthropic");
+  _model = new ChatAnthropic({
+    model: env.model,
+    apiKey: env.anthropicKey,
+    temperature: 0.3,
+  });
+  return _model;
+}
+
+// Freitext-Antwort.
+export async function llmText(systemPrompt, userPrompt) {
+  if (MOCK_LLM) {
+    const inputTokens = estTokens(systemPrompt + userPrompt);
+    const usd = trackUsage({ inputTokens, outputTokens: 60 });
+    melde({ inputTokens, outputTokens: 60, usd, art: "text", mock: true });
+    return mockText(userPrompt);
+  }
+  const model = await getModel();
+  const res = await model.invoke([
+    { role: "system", content: systemPrompt },
+    { role: "user", content: userPrompt },
+  ]);
+  const u = res.usage_metadata || {};
+  const usd = trackUsage({ inputTokens: u.input_tokens, outputTokens: u.output_tokens });
+  melde({ usd, inputTokens: u.input_tokens, outputTokens: u.output_tokens, art: "text", mock: false });
+  return res.content;
+}
+
+// Strukturierte Antwort (Zod-Schema). Für Routing, Critic-Entscheidung usw.
+// mockFactory: erzeugt im Mock-Modus ein schemakonformes Fake-Objekt. Sie kommt
+// aus der Domäne — der Kern weiß nicht, was fachlich eine gültige Antwort ist.
+export async function llmStructured(
+  schema,
+  systemPrompt,
+  userPrompt,
+  mockFactory,
+) {
+  if (MOCK_LLM) {
+    const inputTokens = estTokens(systemPrompt + userPrompt);
+    const usd = trackUsage({ inputTokens, outputTokens: 40 });
+    melde({ inputTokens, outputTokens: 40, usd, art: "structured", mock: true });
+    return mockFactory();
+  }
+  const model = await getModel();
+  const structured = model.withStructuredOutput(schema);
+  const res = await structured.invoke([
+    { role: "system", content: systemPrompt },
+    { role: "user", content: userPrompt },
+  ]);
+  return res;
+}
