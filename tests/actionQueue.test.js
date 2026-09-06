@@ -6,6 +6,11 @@
 // Das ist die Grundlage von Metrik 3.2 (Unauthorized-Action-Rate). Ein gekaperter
 // Agent darf höchstens eine erlaubte, begrenzte Aktion einreihen — und selbst die
 // führt er nicht selbst aus.
+//
+// Dazu die Idempotenz (ADR-0026): dieselbe Aktion zweimal eingereiht bleibt eine.
+// Solange der Worker simuliert, ist die doppelte Zeile harmlos; mit einem echten
+// Portal-Aufruf wäre sie ein zweites Inserat. Deshalb wird sie hier geprüft,
+// bevor es diesen Aufruf gibt.
 
 import { test, after } from "node:test";
 import assert from "node:assert/strict";
@@ -16,6 +21,12 @@ import {
   startActionWorker,
   stopActionWorker,
 } from "../src/domains/report/actions.js";
+
+import { frischerZustand } from "./helpers/zustand.js";
+
+// Eigenes Zustandsverzeichnis je Testdatei (T11) — sonst sähe der zweite
+// `npm test`-Lauf den Zustand des ersten.
+frischerZustand();
 
 const warte = (ms) => new Promise((r) => setTimeout(r, ms));
 const finde = (id) => getQueue().find((a) => a.id === id);
@@ -104,5 +115,89 @@ test("startActionWorker ist idempotent — ein zweiter Aufruf legt keinen zweite
     finde(id).status,
     "PENDING",
     "Nach stopActionWorker darf nichts mehr verarbeitet werden",
+  );
+});
+
+// ── Idempotenz (ADR-0026) ───────────────────────────────────────────────
+
+test("Dieselbe Aktion zweimal eingereiht ergibt EINE Zeile und dieselbe id", () => {
+  const vorher = getQueue().length;
+  const eingabe = {
+    threadId: "t5",
+    actionType: "NOTIFY",
+    payload: { text: "genau einmal" },
+  };
+  const erste = enqueueAction(eingabe);
+  const zweite = enqueueAction(eingabe);
+
+  assert.equal(zweite, erste, "Der zweite Aufruf gibt die vorhandene id zurück");
+  assert.equal(getQueue().length, vorher + 1, "Die Queue ist nur um eins gewachsen");
+});
+
+test("Die Feldreihenfolge im Payload ändert den Schlüssel nicht", () => {
+  const vorher = getQueue().length;
+  const a = enqueueAction({
+    threadId: "t6",
+    actionType: "EMAIL",
+    payload: { to: "a@b.de", body: "kurz" },
+  });
+  const b = enqueueAction({
+    threadId: "t6",
+    actionType: "EMAIL",
+    payload: { body: "kurz", to: "a@b.de" },
+  });
+  assert.equal(b, a, "Gleicher Inhalt, andere Reihenfolge — derselbe Schlüssel");
+  assert.equal(getQueue().length, vorher + 1);
+});
+
+test("Ein anderes Payload ist eine andere Aktion", () => {
+  const vorher = getQueue().length;
+  const a = enqueueAction({
+    threadId: "t7",
+    actionType: "NOTIFY",
+    payload: { text: "eins" },
+  });
+  const b = enqueueAction({
+    threadId: "t7",
+    actionType: "NOTIFY",
+    payload: { text: "zwei" },
+  });
+  assert.notEqual(b, a);
+  assert.equal(getQueue().length, vorher + 2);
+});
+
+test("Ein mitgegebener idempotencyKey schlägt den abgeleiteten", () => {
+  const vorher = getQueue().length;
+  const a = enqueueAction({
+    threadId: "t8",
+    actionType: "NOTIFY",
+    payload: { text: "erste Fassung" },
+    idempotencyKey: "inserat-OBJ-001-immoscout24",
+  });
+  // Anderes Payload, gleicher Schlüssel → bewusst dieselbe Aktion. Das ist der
+  // Fall, den ein Portal-Aufruf braucht: der Schlüssel gehört dem Vorgang, nicht
+  // dem Text.
+  const b = enqueueAction({
+    threadId: "t8",
+    actionType: "NOTIFY",
+    payload: { text: "zweite Fassung" },
+    idempotencyKey: "inserat-OBJ-001-immoscout24",
+  });
+  assert.equal(b, a);
+  assert.equal(getQueue().length, vorher + 1);
+});
+
+test("TOR 1 kommt vor der Dedup-Prüfung", () => {
+  // Ein nicht erlaubter Typ muss auch dann auffliegen, wenn er einen bereits
+  // bekannten Schlüssel mitbringt.
+  assert.throws(
+    () =>
+      enqueueAction({
+        threadId: "t8",
+        actionType: "DELETE_ALL",
+        payload: {},
+        idempotencyKey: "inserat-OBJ-001-immoscout24",
+      }),
+    /Whitelist/,
   );
 });

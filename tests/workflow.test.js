@@ -14,6 +14,12 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
+import { frischerZustand } from "./helpers/zustand.js";
+
+// Eigenes Zustandsverzeichnis je Testdatei (T11) — sonst sähe der zweite
+// `npm test`-Lauf den Zustand des ersten.
+frischerZustand();
+
 // Traces dürfen nicht ins Repo laufen: eigenes Verzeichnis, VOR dem Import.
 const traceDir = fs.mkdtempSync(path.join(os.tmpdir(), "trace-workflow-"));
 process.env.TRACE_DIR = traceDir;

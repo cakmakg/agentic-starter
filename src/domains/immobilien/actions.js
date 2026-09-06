@@ -20,7 +20,11 @@ export const validators = {
 
 // Eine Queue je Domäne — eigener Modul-Singleton, getrennt von der Queue der
 // Domäne `report`.
-export const immobilienQueue = createActionQueue({ whitelist, validators });
+export const immobilienQueue = createActionQueue({
+  whitelist,
+  validators,
+  logName: "aktionen-immobilien",
+});
 
 export const { enqueueAction, getQueue, startActionWorker, stopActionWorker } =
   immobilienQueue;

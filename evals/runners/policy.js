@@ -9,6 +9,7 @@
 // nachprüfbar — wer eine Zahl anzweifelt, kann die Zeile aufschlagen.
 
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import crypto from "node:crypto";
 import { fileURLToPath } from "node:url";
@@ -21,6 +22,14 @@ const wurzel = path.resolve(evalsDir, "..");
 // durcheinandergeraten.
 const traceDir = path.join(evalsDir, "traces");
 process.env.TRACE_DIR = traceDir;
+
+// Und ein FRISCHES Zustandsverzeichnis je Lauf (T11). Ohne das schleppte der
+// zweite Durchgang den ersten mit — und der Determinismus-Nachweis aus §6 wäre
+// keiner mehr, sondern eine Aussage über gealterten Zustand. Nicht ins Repo:
+// os.tmpdir(), damit auch ein abgebrochener Lauf nichts hinterlässt.
+process.env.STATE_DIR = fs.mkdtempSync(
+  path.join(os.tmpdir(), "agentic-evals-zustand-"),
+);
 
 const { MOCK_LLM } = await import("../../src/kernel/config/env.js");
 if (!MOCK_LLM) {

@@ -22,7 +22,11 @@ export const validators = {
 
 // Eine Queue je Domäne. Sie ist ein Modul-Singleton, weil der Worker und die
 // Beobachtung über /api/queue dieselbe Liste sehen müssen.
-export const reportQueue = createActionQueue({ whitelist, validators });
+export const reportQueue = createActionQueue({
+  whitelist,
+  validators,
+  logName: "aktionen-report",
+});
 
 export const { enqueueAction, getQueue, startActionWorker, stopActionWorker } =
   reportQueue;

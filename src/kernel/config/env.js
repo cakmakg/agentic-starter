@@ -21,6 +21,18 @@ export const env = {
   apiKey: process.env.API_KEY || "dev-local-key",
   monthlyBudgetUsd: Number(process.env.MONTHLY_BUDGET_USD || 5),
   port: Number(process.env.PORT || 3000),
+
+  // Ein einziger Mandant (ADR-0025) — aber das Feld steht vom ersten
+  // persistenten Schema an da und wird in JEDER Abfrage gefiltert. Eine Abfrage
+  // ohne Mandantenfilter gilt als Defekt, auch solange es nur einen gibt.
+  // Phase 6 vervielfacht dann die Werte, ohne eine Abfrage anzufassen.
+  tenantId: process.env.TENANT_ID || "default",
+
+  // Wohin der dauerhafte Zustand geschrieben wird (T11). Überschreibbar wie
+  // TRACE_DIR in observability/trace.js — Tests und der Harness zeigen damit
+  // auf ein frisches Verzeichnis, sonst schleppt ein Lauf den vorigen mit und
+  // der Determinismus-Nachweis wäre keiner mehr.
+  stateDir: process.env.STATE_DIR || path.join(process.cwd(), ".zustand"),
 };
 
 // Fehlt der LLM-Schlüssel, greift der "Mock-Modus": es wird kein echter Aufruf

@@ -10,8 +10,9 @@
 // Prüfkriterium aus ADR-0018: eine zweite Domäne darf an dieser Datei
 // NULL Zeilen ändern (T10, Phase 5).
 
-import { StateGraph, START, END, MemorySaver } from "@langchain/langgraph";
+import { StateGraph, START, END } from "@langchain/langgraph";
 import { buildState } from "../state/schema.js";
+import { DateiCheckpointer } from "../persistence/checkpointer.js";
 
 // human_approval = LEERER Platzhalter. Seine einzige Funktion: die Stelle
 // markieren, an der der Graph anhält.
@@ -59,10 +60,12 @@ export function buildGraph(domain) {
 
   g.addEdge(domain.terminal, END);
 
-  // MemorySaver = Checkpointer für Pause und Fortsetzung (im Arbeitsspeicher).
-  // interruptBefore: der Graph hält an, BEVOR er human_approval betritt → HITL.
+  // Der Checkpointer trägt Pause und Fortsetzung. Seit T11 überlebt er einen
+  // Neustart: je Domäne ein eigenes Log, damit zwei Domänen sich nicht in die
+  // Historie schreiben. interruptBefore: der Graph hält an, BEVOR er
+  // human_approval betritt → HITL.
   return g.compile({
-    checkpointer: new MemorySaver(),
+    checkpointer: new DateiCheckpointer(`checkpoints-${domain.name}`),
     interruptBefore: [HUMAN_NODE],
   });
 }

@@ -13,6 +13,12 @@ import assert from "node:assert/strict";
 import { MOCK_LLM } from "../src/kernel/config/env.js";
 import { orchestratorNode } from "../src/domains/report/domain.js";
 
+import { frischerZustand } from "./helpers/zustand.js";
+
+// Eigenes Zustandsverzeichnis je Testdatei (T11) — sonst sähe der zweite
+// `npm test`-Lauf den Zustand des ersten.
+frischerZustand();
+
 // Ein Zustand, in dem KEINE Bremse greift, als Ausgangspunkt zum Verbiegen.
 const zustand = (over = {}) => ({
   task: "Aufgabe",

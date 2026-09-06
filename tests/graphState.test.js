@@ -17,6 +17,12 @@ import assert from "node:assert/strict";
 import { buildState } from "../src/kernel/state/schema.js";
 import { reportDomain } from "../src/domains/report/domain.js";
 
+import { frischerZustand } from "./helpers/zustand.js";
+
+// Eigenes Zustandsverzeichnis je Testdatei (T11) — sonst sähe der zweite
+// `npm test`-Lauf den Zustand des ersten.
+frischerZustand();
+
 // Dasselbe Schema wie im Lauf: Kernfelder plus die Felder der Domäne.
 const GraphState = buildState(reportDomain);
 

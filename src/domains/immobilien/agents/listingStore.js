@@ -1,11 +1,14 @@
 // ── domains/immobilien/agents/listingStore.js ────────────────────────────
-// Schreibt die geprüften Inserate in den (vorläufig In-Memory-)Speicher.
-// KEIN LLM (deterministisch) — wie fileSaver.js in domains/report.
+// Schreibt die geprüften Inserate in den dauerhaften Speicher. KEIN LLM
+// (deterministisch) — wie fileSaver.js in domains/report.
 //
-// staged=true → BREMSE2 greift → HITL. Persistenz mit tenantId (ADR-0025,
-// T11) ist ein eigener, noch offener Schritt in Phase 5 — siehe EXTEND.md §3.
+// staged=true → BREMSE2 greift → HITL. Die Persistenz mit tenantId (ADR-0025,
+// T11) liegt seit Phase 5 hinter der Dauerhaftigkeits-Schicht des Kerns; ein
+// eigenes Log je Domäne, damit zwei Domänen sich nicht ins Gehege kommen.
 
-const store = new Map(); // threadId -> { property, listings, status }
+import { createArtifactStore } from "../../../kernel/persistence/store.js";
+
+const store = createArtifactStore("artefakte-immobilien"); // threadId -> { property, listings, status }
 
 export function listingStoreNode(state) {
   store.set(state.threadId, {
@@ -25,6 +28,5 @@ export function getListingArtifact(threadId) {
 }
 
 export function markDelivered(threadId) {
-  const a = store.get(threadId);
-  if (a) a.status = "DELIVERED";
+  store.patch(threadId, { status: "DELIVERED" });
 }

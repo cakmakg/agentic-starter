@@ -5,10 +5,14 @@
 // "speichern" ist also das Signal, das "zur menschlichen Genehmigung bringen"
 // auslöst.
 //
-// Hier wird ein In-Memory-Store benutzt, damit der Starter ohne jede Infrastruktur
-// läuft. Persistenz kommt in Phase 5, samt `tenantId` (ADR-0025). Siehe EXTEND.md.
+// Der Speicher liegt seit T11 nicht mehr im Arbeitsspeicher, sondern hinter der
+// Dauerhaftigkeits-Schicht des Kerns (ADR-0025, ADR-0027). Nach außen ändert das
+// NICHTS: dieselben drei Funktionen, dieselben Rückgaben. Die Mechanik gehört in
+// den Kern, die Bedeutung — was ein Artefakt dieser Domäne ist — hierher (ADR-0018).
 
-const store = new Map(); // threadId -> { task, content, status }
+import { createArtifactStore } from "../../../kernel/persistence/store.js";
+
+const store = createArtifactStore("artefakte-report"); // threadId -> { task, content, status }
 
 export function fileSaverNode(state) {
   store.set(state.threadId, {
@@ -30,6 +34,8 @@ export function getArtifact(threadId) {
 }
 
 export function markPublished(threadId) {
-  const a = store.get(threadId);
-  if (a) a.status = "PUBLISHED";
+  // patch statt Mutieren des gelesenen Objekts: eine Änderung, die nur im
+  // Arbeitsspeicher landete, wäre nach einem Neustart weg — und niemandem
+  // fiele es auf, weil derselbe Prozess sie noch sähe.
+  store.patch(threadId, { status: "PUBLISHED" });
 }

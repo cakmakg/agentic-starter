@@ -33,6 +33,11 @@ build/
 evals/traces/*
 !evals/traces/samples/
 
+# Dauerhafter Zustand (T11): Checkpoints, Artefakte, Aktionsqueue. Laufzeitdaten
+# eines konkreten Rechners — im Repo hätten sie nichts zu suchen. Der Ort ist
+# über STATE_DIR überschreibbar; Tests und Harness zeigen auf ein Temp-Verzeichnis.
+.zustand/
+
 # Menschliche, türkischsprachige Projektdarstellung — richtet sich an die
 # Nutzerin/den Nutzer, nicht an die Öffentlichkeit. Vertragsdokumente
 # (PRODUCT/ARCHITECTURE/DECISIONS/EVALS, docs/) bleiben öffentlich.
