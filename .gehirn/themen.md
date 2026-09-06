@@ -8,19 +8,44 @@ Wird ein Thema zu einer Entscheidung, wandert es nach `DECISIONS.md` und wird hi
 
 ## Aktive Themen
 
-### Thema: Domäne `immobilien` — Phase 5, vorgezogen
-**Status:** 🟡 Entschieden (ADR-0024), nichts gebaut. `portfolioLoader` ohne LLM · `listingWriter` je Portal · `contractChecker` überwiegend deterministisch. Vertrag: jede Zahl buchstabengleich aus einem Feld, nichts Konkretes ohne Feld. Offen: Bestätigung durch die Kundin oder den Kunden.
+### Thema: Domäne `immobilien` — gebaut, aber ungemessen
+**Status:** 🔴 **Der größte blinde Fleck des Repos.** Das Skelett läuft (`npm run demo:immobilien` → `DELIVERED`), T10 und T11 sind grün — aber `tests/` und `evals/` kennen die Domäne nicht: **null** Tests, kein Golden-Datensatz. T8 ist damit eine Demo-Ausgabe, keine Messung. Nächste Arbeit. Vertrag unverändert: jede Zahl buchstabengleich aus einem Feld, nichts Konkretes ohne Feld. Offen außerdem: echter Executor, Genehmigungsbildschirm, T12.
 
-### Thema: Persistenz und `tenantId` — Phase 5
-**Status:** 🟡 ADR-0025: Checkpointer und Artefakt-Store persistent, `tenantId` mit festem Wert im Schema und **in jeder Abfrage** gefiltert — eine Abfrage ohne Filter ist ein Defekt. Prüfkriterium T11. Mandantentrennung erst Phase 6.
-
-### Thema: Phase 3 — Messen (abgeschlossen bis auf den CI-Lauf)
-**Status:** 🟢 T3–T6 grün: 70 Tests (95,19 %), Umzug in die Zielstruktur erfolgt, Harness läuft (20 Aufgaben, 20/20 vertragstreu, zwei Durchgänge identisch). **Offen: der erste CI-Lauf** — `.github/workflows/ci.yml` steht, wurde aber nie ausgeführt; P2 bleibt bis dahin gelb. Der Judge-Teil der Schicht B gehört seit ADR-0024 in Phase 4.
+### Thema: Zwei Sitzungen Arbeit liegen uncommittet
+**Status:** 🟡 Guardrail-Schwelle, ADR-0026/0027, Persistenz und die Drift-Bereinigung stehen im Arbeitsverzeichnis, nicht in der Historie. Die CI (P2 grün) hat davon nichts gesehen — ihr grüner Lauf gehört zu `17ecdfe`. Commit und Push sind eine ausdrückliche Entscheidung der Nutzerin oder des Nutzers, deshalb wartet es hier.
 
 ### Thema: MCP-Adapter — Server in Phase 4
 **Status:** 🟡 ADR-0022: `run_workflow`, `get_status`, `list_queue` — **kein** `approve`. `@modelcontextprotocol/sdk` vorab freigegeben. Client wandert nach Phase 6 (ADR-0024).
 
 ## Abgeschlossene Themen
+
+### Thema: Persistenz und `tenantId` (T11)
+**Abgeschlossen:** 2026-09-06. Eigene Datei-Schicht statt Paket (**ADR-0027**): das
+SQLite-Paket hätte `better-sqlite3` und damit eine native Übersetzung nachgezogen — T7 wäre
+von einer Build-Toolchain abhängig geworden. Zwei neue Kerndateien (16 → 18 von 20). Der
+Checkpointer wird **geerbt, nicht nachgebaut**. Der teure Befund: `serde.loadsTyped` ist
+asynchron, das Abspielen im Konstruktor reichte ein Promise weiter und der Speicher blieb
+still leer — sichtbar erst im Lauf, nie beim Lesen. Prova: zwei echte Kindprozesse mit
+PID-Vergleich, inklusive Ablehnung über die Prozessgrenze. Drei Grenzen in `ARCHITECTURE.md`
+§4 geschlossen, zwei neue (unbegrenztes Log, keine Sperre zwischen Prozessen) eröffnet.
+
+### Thema: Phase 3 — Messen
+**Abgeschlossen:** 2026-09-06. T3–T6 grün (**81 Tests, 95,58 %, kein `todo`**), Umzug in die
+Zielstruktur, Harness läuft (20/20 vertragstreu, zwei identische Durchgänge). Die letzte
+offene Zeile **P2** ist mit dem ersten CI-Lauf grün geworden — von der Nutzerin oder dem
+Nutzer auf der Actions-Seite geprüft, für den Stand von `17ecdfe`. Der Judge-Teil der
+Schicht B gehört seit ADR-0024 in Phase 4.
+
+### Thema: Guardrail-Schwelle und Idempotenz der ActionQueue
+**Abgeschlossen:** 2026-09-06. Zwei alte Posten in einem Zug, jeder mit eigener Prova.
+Blockierschwelle 8 → 3 (sanitisieren 3 → 2); der `todo`-Test in `tests/guardrail.test.js`
+ist grün geworden statt gelöscht, Metrik 3.5 steht auf einem Nenner von 3 statt 1. Zwei
+Nebenbefunde beim Bauen: `sanitize()` deckte das neue Band nicht ab (das Log hätte
+„sanitisiert" gemeldet, ohne etwas zu ändern) und der Harness trug die Schwelle als zweite
+Kopie im Code. Dazu **ADR-0026**: Idempotenzschlüssel und Dedup in der ActionQueue, vor dem
+echten Executor statt danach — `delivery` zweimal ergibt 3 Einträge statt 6. Zum Schluss die
+Drift-Bereinigung: `PRODUCT.md` §8 stand auf Phase 2, die Abdeckung in vier Dateien in zwei
+Fassungen. Alles auf eine gemessene Zahl mit Datum.
 
 ### Thema: Phase 2 — Stabilisieren, zwei Spuren
 **Abgeschlossen:** 2026-09-03. Code-Spur (T2.5) war bereits fertig; die Spur ohne Code —

@@ -50,12 +50,13 @@ geändert hat — nicht, dass etwas richtig ist.
 
 ## Wo dieser Harness blind ist
 
-**Der Nenner von 3.5 ist winzig.** Genau **eine** Aufgabe soll blockiert werden
-(PI-1), weil nur sie alle vier Regeln gleichzeitig auslöst. Präzision und
-Trefferquote von 100 % stehen also auf einem Nenner von 1 — das ist die
-Nenner-Probe aus `EVALS.md` §7, und sie fällt hier schwach aus. Der Grund ist der
-bekannte Defekt: die Blockierschwelle (8) entspricht der Summe aller Gewichte (8).
-Solange er besteht, kann kein größerer Datensatz daran etwas ändern.
+**Der Nenner von 3.5 ist klein — war aber winziger.** Bis Phase 5 sollte genau
+**eine** Aufgabe blockiert werden (PI-1), weil nur sie alle vier Regeln zugleich
+auslöste: Präzision und Trefferquote von 100 % auf einem Nenner von 1. Ursache war
+der bekannte Defekt — die Blockierschwelle (8) entsprach der Summe aller Gewichte.
+Seit die Schwelle auf 3 gefallen ist, blockieren auch PI-2 und PI-3; der Nenner
+steht auf **3**. Klein bleibt er trotzdem. Die Nenner-Probe aus `EVALS.md` §7 ist
+damit bestanden, nicht erledigt.
 
 **Das Revisionslimit wird nicht erreicht.** Der Mock-Critic gibt ab der zweiten
 Revision frei; fünf Ablehnungen in Folge sind so nicht erzeugbar. BREMSE 3 ist

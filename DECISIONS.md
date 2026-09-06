@@ -6,7 +6,7 @@
 > Reift eine Regel aus `.gehirn/regeln.md` zu einer Architekturentscheidung, wandert sie
 > hierher und wird dort auf eine Zeile gekürzt.
 
-**Stand:** Phase 2 · **Zuletzt aktualisiert:** 2026-09-03 · **25 Einträge**
+**Stand:** Phase 5 · **Zuletzt aktualisiert:** 2026-09-06 · **27 Einträge**
 
 ---
 
@@ -429,3 +429,90 @@ Versicherung fast nichts: ein Feld und ein Filter. Später kostet sie jede Abfra
 Damit bekommt auch Phase 6 ihr Prüfkriterium: Mehrmandantenfähigkeit heißt dann **die Werte
 vervielfachen sich, die Abfragen bleiben unverändert.** Muss dort doch eine Abfrage angefasst
 werden, wurde diese Entscheidung nicht eingehalten.
+
+---
+
+## ADR-0026 — Die ActionQueue ist idempotent, bevor sie etwas Echtes tut
+
+**Kontext.** `delivery` reiht je Portal eine Aktion ein; der Worker validiert und führt aus.
+Heute simuliert er nur, also ist eine doppelt eingereihte Aktion folgenlos. Sobald dort ein
+echter Portal-Aufruf steht, ist dieselbe Zeile ein zweites Inserat — und die Wiederholung
+entsteht nicht aus einem Fehler, sondern aus dem normalen Betrieb: ein zweiter Klick auf
+Genehmigen, ein wiederholter Request, ein Neustart mit erneutem Lauf.
+
+Nachträglich eingeführt hieße Idempotenz, jeden bestehenden Aufrufpfad noch einmal
+anzufassen. Vorher eingeführt kostet sie einen Schlüssel und eine `Map`.
+
+**Entscheidung.** Jede Aktion trägt einen **Idempotenzschlüssel**. Wird keiner mitgegeben,
+leitet ihn `schluesselAus` deterministisch aus `(threadId, actionType, payload)` ab —
+mit stabiler Serialisierung, damit die Feldreihenfolge im Payload den Schlüssel nicht
+verändert, und mit Längenpräfixen, damit kein Feldinhalt die Grenze zum nächsten Feld
+nachbilden kann. Ein bereits bekannter Schlüssel wird **nicht erneut geschrieben**;
+`enqueueAction` gibt die id der vorhandenen Aktion zurück.
+
+Die **Reihenfolge der Tore bleibt**: erst die Whitelist, dann die Dedup-Prüfung. Ein nicht
+erlaubter Typ fliegt auch dann auf, wenn er einen bekannten Schlüssel mitbringt.
+
+Dazu eine zweite, kleinere Zusage: der Worker verarbeitet **höchstens einen Durchgang
+gleichzeitig**. Ohne diese Sperre kann der nächste Takt starten, während der vorige noch auf
+einen Aufruf wartet, und dieselbe `PENDING`-Aktion ein zweites Mal aufnehmen. Bei einem
+simulierten Aufruf fällt das nie auf; bei einem echten schon.
+
+**Konsequenz.** Wer einen Vorgang bewusst wiederholen will, gibt einen **eigenen** Schlüssel
+mit — der Schlüssel gehört dann dem Vorgang, nicht dem Text. Das ist der Fall, den ein
+Portal-Aufruf braucht: dasselbe Inserat in zweiter Fassung bleibt derselbe Vorgang.
+
+Eine abgelehnte oder endgültig gescheiterte Aktion bleibt im Index. Dieselbe Eingabe erneut
+einzureihen ergibt kein zweites Ergebnis — ein neuer Versuch ist ein neuer Schlüssel und
+keine stille Wiederholung.
+
+**Grenze, ausdrücklich.** Der Index liegt im Arbeitsspeicher. Ein Neustart vergisst ihn — die
+Aktionen selbst allerdings auch, sie stehen in derselben Liste. Beides schließt erst die
+Persistenz aus **T11** (ADR-0025); bis dahin gilt die Zusage innerhalb eines Prozesslebens.
+Sie steht damit auf derselben Stufe wie `MemorySaver`, nicht darunter.
+
+---
+
+## ADR-0027 — Dauerhaftigkeit als eigene Datei-Schicht, nicht als Paket
+
+**Kontext.** T11 verlangt, dass ein Neustart keine wartende Genehmigung verliert. Drei Dinge
+lagen im Arbeitsspeicher: der Checkpointer (`MemorySaver`), die Artefakt-`Map`s beider
+Domänen und seit ADR-0026 der Dedup-Index der ActionQueue. Alle drei sind dasselbe Problem,
+also brauchten sie dieselbe Antwort.
+
+Der naheliegende Weg wäre `@langchain/langgraph-checkpoint-sqlite` gewesen. Er zieht
+`better-sqlite3` nach — eine native Übersetzung. Damit hinge `clone → install → demo` auf
+einer frischen Maschine an einer Build-Toolchain. Genau diese Zusage ist **T7**, ein
+Prüfkriterium dieses Repos; ein grünes Kriterium gegen eine Bequemlichkeit einzutauschen wäre
+der schlechteste Handel, den dieser Starter machen kann.
+
+**Entscheidung.** Eine eigene, abhängigkeitsfreie Schicht: **ein append-only JSONL-Log je
+Name** unter `STATE_DIR` (Vorgabe `.zustand/`), `node:fs` genügt — dasselbe Muster, das der
+Trace seit T2.5 benutzt. Jede Zeile trägt `tenantId`, **jede Lesung filtert danach**
+(ADR-0025); der Filter steht in `readLog` und nicht bei den Aufrufern, damit ihn niemand
+vergessen kann.
+
+Für den Checkpointer gilt eine zusätzliche Regel: **er wird nicht nachgebaut, sondern
+geerbt.** `DateiCheckpointer extends MemorySaver` ergänzt nur Anhängen und Abspielen und
+benutzt dabei ausschließlich dokumentierte Schnittstellen (`super.*`, `this.serde`); die
+internen Felder `storage` und `writes` bleiben unberührt. Das Protokoll selbst — Elternkette,
+Kanalversionen, `pendingWrites` — korrekt nachzubauen wäre die riskanteste Stelle des Repos:
+ein Fehler darin verlöre genau die Läufe, die dieses Kriterium retten soll.
+
+**Konsequenz.** Keine neue Abhängigkeit, kein Dienst, in CI lauffähig, und `.zustand/` darf
+jederzeit gelöscht werden — ein leeres Verzeichnis ist der Anfangszustand, kein Fehler
+(eigener Test). Aufrufer, die bewusst keinen dauerhaften Zustand wollen, geben schlicht
+keinen `logName` an; die Queue bleibt dann flüchtig.
+
+Ein Befund beim Bauen gehört hierher, weil er den Entwurf geformt hat: `serde.loadsTyped` ist
+**asynchron**. Das Abspielen im Konstruktor reichte deshalb ein Promise statt eines
+Checkpoints weiter — der Speicher blieb still leer, und der zweite Prozess fand das Artefakt,
+aber keinen Lauf. Ein Konstruktor kann nicht warten; das Abspielen läuft seither **einmalig
+beim ersten Zugriff**, wo gewartet werden darf. Nebeneffekt, der ohnehin erwünscht war: das
+bloße Laden eines Moduls fasst keine Datei mehr an.
+
+**Grenzen, ausdrücklich.** Das Log **wächst unbegrenzt** — keine Verdichtung, keine Rotation,
+und abgespielt wird die ganze Historie. Es gibt **keine Sperre zwischen Prozessen**; der
+Ablauf dieses Repos ist seriell. Beides steht als eigene Zeile in `ARCHITECTURE.md` §4. Wer
+Dauerbetrieb braucht, tauscht diese Schicht gegen eine Datenbank — die Schnittstelle
+(`appendLog`, `readLog`, `createArtifactStore`) ist genau dafür klein gehalten.

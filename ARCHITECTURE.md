@@ -182,13 +182,16 @@ sie kennen.
 
 | Grenze | Auswirkung | Geplant |
 |---|---|---|
-| `MemorySaver` im Arbeitsspeicher | Bei einem Neustart gehen auf HITL wartende Workflows verloren | Phase 5 |
-| Artefakt-Store ist eine `Map` | Dasselbe für gespeicherte Berichte | Phase 5 |
+| ~~`MemorySaver` im Arbeitsspeicher~~ | ~~Bei einem Neustart gehen auf HITL wartende Workflows verloren.~~ **Behoben in Phase 5 (T11):** `DateiCheckpointer` erbt von `MemorySaver` und ergänzt Anhängen/Abspielen. Nachweis: `tests/integration/persistence.test.js` startet **zwei echte Prozesse** | ✅ behoben |
+| ~~Artefakt-Store ist eine `Map`~~ | ~~Dasselbe für gespeicherte Berichte.~~ **Behoben in Phase 5 (T11):** `createArtifactStore` in beiden Domänen; die nach außen sichtbaren Signaturen blieben unverändert | ✅ behoben |
 | Action-Executor simuliert | Es wird nichts wirklich zugestellt | Phase 5 |
-| Ein einziger Tenant | Kein `tenantId` in Abfragen, keine Mandantentrennung | Feld ab Phase 5 im Schema (ADR-0025), Trennung Phase 6 |
+| Ein einziger Tenant | `tenantId` steht seit Phase 5 in jeder Zeile und filtert **jede** Lesung (ADR-0025) — aber es gibt weiterhin nur einen Mandanten, kein SSO, kein Onboarding | Trennung Phase 6: die Werte vervielfachen sich, die Abfragen bleiben unverändert |
 | Puffer-GC deckt den HITL-Pfad nicht ab | Kleines Speicherleck bei langlaufenden Servern | Phase 2 |
 | `res.content` wird als String angenommen | Im echten LLM-Modus möglich: `[object Object]` | Phase 2 |
-| Guardrail-Schwelle unerreichbar | Blockierschwelle 8 = Summe aller Gewichte; eine einzelne Injection wird nur sanitisiert. **Gemessen in Phase 3:** 3.5 steht auf einem Nenner von 1 | offen |
+| ~~Guardrail-Schwelle unerreichbar~~ | ~~Blockierschwelle 8 = Summe aller Gewichte; eine einzelne Injection wird nur sanitisiert.~~ **Behoben in Phase 5:** Schwellen jetzt 3 (blockieren) und 2 (sanitisieren). Der `todo`-Test in `tests/guardrail.test.js` ist ein gewöhnlicher Test geworden; der Nenner von 3.5 steigt von 1 auf 3 | ✅ behoben |
+| ~~Dedup-Index der ActionQueue im Arbeitsspeicher~~ | ~~Ein Neustart vergisst, welche Aktion bereits eingereiht war (ADR-0026).~~ **Behoben in Phase 5 (T11):** Queue und Index liegen hinter derselben Schicht; `PROCESSING` wandert bewusst NICHT ins Log, damit eine beim Absturz unterbrochene Aktion als `PENDING` zurückkommt statt liegenzubleiben | ✅ behoben |
+| Das Zustands-Log wächst unbegrenzt | Append-only, keine Verdichtung, keine Rotation. Ein Neustart spielt die **ganze** Historie ab, nicht nur den letzten Checkpoint — bei einem Starter mit einem Mandanten tragbar, im Dauerbetrieb nicht | offen — mit dem ersten echten Betrieb, nicht spekulativ |
+| Keine Sperre zwischen Prozessen | Zwei gleichzeitig schreibende Prozesse können sich im Log überlappen. Der Ablauf dieses Repos ist seriell (ein Lauf, dann die Genehmigung); mehr wird nicht behauptet | offen |
 | `scheduleBufferGc` hält den Prozess offen | Der 5-Minuten-Timer ist nicht `unref`'t; ein Node-Prozess endet danach erst verspätet. In Tests mit `--test-force-exit` umgangen | offen |
 | Keine Kontextstrategie | Nur Zählung (`estTokens`), kein Komprimieren oder Kürzen — bei langen Sitzungen wächst der Kontext ungebremst | messen Phase 3 (`EVALS.md` §3.12), lösen Phase 6 — und nur, wenn die Messung Last zeigt |
 
@@ -278,7 +281,7 @@ keine einzelne Domäne — er kennt nur die Registry.
 
 ```
 src/
-├── kernel/                     ≤ 20 Dateien (ADR-0021) · heute 16
+├── kernel/                     ≤ 20 Dateien (ADR-0021) · heute 18
 │   ├── graph/
 │   │   ├── build.js            StateGraph aus einer Domänen-Spezifikation
 │   │   ├── runner.js           Pause und Fortsetzung, Checkpointer
@@ -298,6 +301,9 @@ src/
 │   ├── llm/
 │   │   ├── adapter.js          einziger LLM-Eingang + Beobachter je Aufruf (3.12)
 │   │   └── mock.js            deterministische Fake-Antwort, Token-Schätzung
+│   ├── persistence/            ✅ Phase 5 (T11) · ADR-0027
+│   │   ├── store.js            append-only JSONL, Mandantenfilter, Artefakt-Speicher
+│   │   └── checkpointer.js     MemorySaver + Anhängen/Abspielen — überlebt einen Neustart
 │   ├── config/
 │   │   └── env.js             Umgebungsvariablen an einer Stelle
 │   └── registry.js             Domänen-Registrierung — Konfiguration, kein Code

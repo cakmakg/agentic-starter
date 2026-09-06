@@ -52,19 +52,24 @@ tragen kann.
 
 ```
 Budget überschritten?  → END, kein einziger LLM-Aufruf
-Score >= 8             → END, blockiert
-Score >= 3             → sanitisieren und weiter
+Score >= 3             → END, blockiert
+Score >= 2             → sanitisieren und weiter
 sonst                  → weiter
 ```
 
 Gewichtete Regeln: 3 (Jailbreak-Muster) · 2 (Rollenübernahme) · 2 (Instruktions-Marker) ·
 1 (Angriffsvokabular).
 
-> 🔴 **Bekannter Defekt (Phase 2):** Die Summe aller Gewichte ist 8 und die Blockierschwelle
-> liegt ebenfalls bei 8 — blockiert wird also nur, wenn **alle vier** Regeln gleichzeitig
-> greifen. Praktisch unerreichbar. Ein üblicher Injection-Versuch (Score 3) wird nur
-> sanitisiert und läuft weiter; die Sanitisierung maskiert dabei nur ein Muster, während die
-> übrigen im Text stehen bleiben.
+> ✅ **Behoben in Phase 5.** Bis dahin lag die Blockierschwelle bei 8 — genau der Summe aller
+> Gewichte. Blockiert wurde also nur, wenn **alle vier** Regeln zugleich griffen; ein üblicher
+> Injection-Versuch (Score 3) lief sanitisiert weiter. Jetzt gilt: **≥ 3 blockiert · 2
+> sanitisiert · 1 durchgelassen.** Das unterste Band ist Absicht — „malware" oder „sql
+> injection" sind legitime Berichtsthemen, und Metrik 3.5 misst beide Seiten.
+>
+> Mit der Schwelle wurde auch die Sanitisierung nachgezogen: sie maskierte nur das
+> 3er-Muster. Da dieses Band jetzt blockiert, hätte das Log „sanitisiert" gemeldet, ohne dass
+> ein Zeichen des Textes anders gewesen wäre. Sie deckt nun die Muster ab, die im 2er-Band
+> tatsächlich greifen.
 
 ## 4. Die Reihenfolge der Bremsen ist die Regel
 
@@ -148,6 +153,15 @@ resolveApproval({ threadId, approved })
 
 **Der entscheidende Punkt ist die `thread_id`.** Beide Anfragen adressieren denselben
 Checkpoint. Ein `stream(null, config)` heißt „mach am Checkpoint weiter", kein Neustart.
+
+> **Und seit Phase 5 (T11) überlebt dieser Checkpoint auch einen echten Neustart.** Bis
+> dahin lag er im `MemorySaver`, also im Arbeitsspeicher — „zwischen zwei Anfragen" war
+> damit stillschweigend auf „solange der Prozess lebt" begrenzt, und genau das ist bei einer
+> Genehmigung, auf die ein Mensch erst am nächsten Tag schaut, die falsche Grenze.
+> `DateiCheckpointer` (ADR-0027) erbt von `MemorySaver` und ergänzt nur Anhängen und
+> Abspielen; das Protokoll selbst wird nicht nachgebaut. Nachweis:
+> `tests/integration/persistence.test.js` startet **zwei echte Prozesse** — der zweite kennt
+> vom ersten nichts als das Verzeichnis.
 
 > **Behoben in Phase 2 (T2.3).** Die Kante `human_approval → publisher` ist jetzt bedingt
 > und **fail-closed**: nur `humanApproval === true` führt zum `publisher`, `false` und
