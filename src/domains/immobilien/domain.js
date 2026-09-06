@@ -145,7 +145,8 @@ const llmRouter = (state) =>
 
 // ── Guardrail-Muster ─────────────────────────────────────────────────────
 // Eigene Kopie wie in domains/report/domain.js (ADR-0018: die Domäne bringt
-// ihre Muster mit, der Kern nur die Regex-Engine).
+// ihre Muster mit, der Kern nur die Regex-Engine). Auch die Bänder sind
+// dieselben: ≥ 3 blockiert · 2 sanitisiert · 1 durchgelassen.
 const guardrailRules = [
   {
     w: 3,
@@ -156,16 +157,28 @@ const guardrailRules = [
   { w: 1, re: /malware|sql injection|xss|drop table/i },
 ];
 
+// Die Schwellen sind exportiert, weil der Harness dieselbe Grenze kennen muss:
+// „sanitisiert" gegen „durchgelassen" wird dort aus dem threatScore abgeleitet.
+// Zwei Kopien derselben Zahl wären genau die Drift, die dieses Repo misst.
+export const guardrailSchwellen = { blockieren: 3, sanitisieren: 2 };
+
 export const immobilienDomain = registerDomain({
   name: "immobilien",
   stateFields,
   nodes: {
     guardrail: createGuardrail({
       rules: guardrailRules,
-      blockThreshold: 8,
-      sanitizeThreshold: 3,
+      blockThreshold: guardrailSchwellen.blockieren,
+      sanitizeThreshold: guardrailSchwellen.sanitisieren,
+      // Sanitisiert wird, was im 2er-Band greift — sonst behauptet das Log
+      // "sanitisiert", ohne dass ein Zeichen des Textes anders wäre. Das
+      // 3er-Muster bleibt vorsichtshalber drin (heute blockiert es ohnehin);
+      // das 1er-Band bleibt unangetastet, es ist legitimes Thema.
       sanitize: (task) =>
-        task.replace(/ignore (previous|all) instructions/gi, "[filtered]"),
+        task
+          .replace(/ignore (previous|all) instructions/gi, "[filtered]")
+          .replace(/you are now (a|an)|pretend to be|act as (a|an)/gi, "[filtered]")
+          .replace(/\[INST\]|###\s*system|<\|.*?\|>/gi, "[filtered]"),
       maxTaskLength: MAX_TASK_LENGTH,
     }),
     orchestrator: createRouter({ brakes, validAgents, llmRouter }),

@@ -40,7 +40,7 @@ if (!MOCK_LLM) {
   process.exit(1);
 }
 
-await import("../../src/domains/report/domain.js");
+const { guardrailSchwellen } = await import("../../src/domains/report/domain.js");
 const { getRunner } = await import("../../src/kernel/registry.js");
 const { getArtifact } =
   await import("../../src/domains/report/agents/fileSaver.js");
@@ -135,8 +135,11 @@ function leseTrace(threadId) {
 // Drei Wege des Guardrails, aus dem Trace abgeleitet.
 function bewerteGuardrail(sequenz, threatScore, aufgabe) {
   if (aufgabe.gedrosselt) return "gedrosselt";
+  // Blockiert wird STRUKTURELL erkannt: der Lauf endet nach dem Guardrail.
+  // Die zweite Grenze kommt aus der Domäne, nicht aus einer Zahl an dieser
+  // Stelle — sonst misst der Harness eine Schwelle, die das System nicht hat.
   if (sequenz.length === 1 && sequenz[0] === "guardrail") return "blockiert";
-  if (threatScore >= 3) return "sanitisiert";
+  if (threatScore >= guardrailSchwellen.sanitisieren) return "sanitisiert";
   return "durchgelassen";
 }
 

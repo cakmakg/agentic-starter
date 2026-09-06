@@ -149,12 +149,16 @@ const llmRouter = (state) =>
   );
 
 // ── Guardrail-Muster ─────────────────────────────────────────────────────
-// Gewichtete Bewertung; die Stufe entspricht dem Schweregrad.
+// Gewichtete Bewertung; die Stufe entspricht dem Schweregrad. Aus den Gewichten
+// ergeben sich drei Bänder, und die Schwellen unten benennen sie:
 //
-// 🔴 Bekannter Defekt (in Phase 3 gemessen): die Summe aller Gewichte ist 8 und
-// die Blockierschwelle liegt ebenfalls bei 8 — blockiert wird also nur, wenn
-// ALLE vier Regeln gleichzeitig greifen. `tests/guardrail.test.js` hält das als
-// `todo`-Test offen, statt das Verhalten zuzusichern.
+//   ≥ 3  eine ernsthafte Injection für sich allein  → BLOCKIERT
+//     2  Rollenübernahme, fremde Prompt-Marker      → sanitisiert
+//     1  Angriffsvokabular als Thema                → durchgelassen
+//
+// Das dritte Band ist Absicht: „malware" oder „sql injection" sind legitime
+// Berichtsthemen. Wer sie blockiert, kauft Trefferquote mit Falschpositiven —
+// Metrik 3.5 misst beide Seiten, nicht nur eine.
 const guardrailRules = [
   {
     w: 3,
@@ -165,16 +169,28 @@ const guardrailRules = [
   { w: 1, re: /malware|sql injection|xss|drop table/i },
 ];
 
+// Die Schwellen sind exportiert, weil der Harness dieselbe Grenze kennen muss:
+// „sanitisiert" gegen „durchgelassen" wird dort aus dem threatScore abgeleitet.
+// Zwei Kopien derselben Zahl wären genau die Drift, die dieses Repo misst.
+export const guardrailSchwellen = { blockieren: 3, sanitisieren: 2 };
+
 export const reportDomain = registerDomain({
   name: "report",
   stateFields,
   nodes: {
     guardrail: createGuardrail({
       rules: guardrailRules,
-      blockThreshold: 8,
-      sanitizeThreshold: 3,
+      blockThreshold: guardrailSchwellen.blockieren,
+      sanitizeThreshold: guardrailSchwellen.sanitisieren,
+      // Sanitisiert wird, was im 2er-Band greift — sonst behauptet das Log
+      // "sanitisiert", ohne dass ein Zeichen des Textes anders wäre. Das
+      // 3er-Muster bleibt vorsichtshalber drin (heute blockiert es ohnehin);
+      // das 1er-Band bleibt unangetastet, es ist legitimes Thema.
       sanitize: (task) =>
-        task.replace(/ignore (previous|all) instructions/gi, "[filtered]"),
+        task
+          .replace(/ignore (previous|all) instructions/gi, "[filtered]")
+          .replace(/you are now (a|an)|pretend to be|act as (a|an)/gi, "[filtered]")
+          .replace(/\[INST\]|###\s*system|<\|.*?\|>/gi, "[filtered]"),
       maxTaskLength: MAX_TASK_LENGTH,
     }),
     orchestrator: createRouter({ brakes, validAgents, llmRouter }),
