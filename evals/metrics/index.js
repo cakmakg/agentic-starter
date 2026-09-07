@@ -154,3 +154,39 @@ export function vertragstreue(laeufe) {
     })),
   };
 }
+
+// ── 3.8 Vertragskonformität (Schicht B) ──────────────────────────────────
+// Definition: EVALS.md §3.8. Zähler = Entwürfe, die den Ausgabevertrag
+// vollständig erfüllen; Nenner = alle erzeugten Entwürfe.
+//
+// GEMESSEN WIRD DER ERSTE VERSUCH (ADR-0030). Wer stattdessen das Ergebnis
+// NACH der Revisionsschleife zählt, misst nicht den Writer, sondern ob die
+// Schleife irgendwann konvergiert — und bekommt fast zwangsläufig 100 %.
+// Die Schleife wird trotzdem berichtet, als eigene Zahl: sie sagt, was das
+// Tor einbringt.
+export function vertragskonformitaet(entwuerfe) {
+  const mitText = entwuerfe.filter((e) => e.text);
+  const ersterVersuch = mitText.filter((e) => e.konformImErstenVersuch);
+  const konvergiert = mitText.filter((e) => e.konformAmEnde);
+
+  return {
+    "3.8": kennzahl(
+      "Vertragskonformität (erster Versuch)",
+      ersterVersuch.length,
+      mitText.length,
+      1,
+    ),
+    nachRevision: kennzahl(
+      "Konform nach der Revisionsschleife",
+      konvergiert.length,
+      mitText.length,
+      undefined,
+    ),
+    // Wie oft der Writer im Schnitt schreiben musste. Eine 1,0 heißt: das Tor
+    // hat nie eingegriffen — dann sagt `nachRevision` nichts über die Schleife.
+    versucheMedian: median(mitText.map((e) => e.versuche)),
+    verletzungen: mitText
+      .filter((e) => !e.konformImErstenVersuch)
+      .map((e) => ({ id: e.id, variante: e.variante, gruende: e.gruendeErsterVersuch })),
+  };
+}

@@ -10,7 +10,8 @@
     "demo": "node src/bin/demo.js",
     "demo:immobilien": "node src/bin/demoImmobilien.js",
     "test": "node --test --test-force-exit --experimental-test-coverage --test-coverage-lines=80 --test-coverage-exclude=\"tests/**\" --test-coverage-exclude=src/adapters/http/server.js --test-coverage-exclude=src/bin/*.js \"tests/**/*.test.js\"",
-    "evals": "node evals/runners/policy.js"
+    "evals": "node evals/runners/policy.js",
+    "evals:quality": "node evals/runners/quality.js"
   },
   "dependencies": {
     "@langchain/anthropic": "0.3.24",
