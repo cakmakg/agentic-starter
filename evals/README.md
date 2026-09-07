@@ -143,6 +143,19 @@ Judge-Maschine gehört in Phase 4 (ADR-0024).
 | Konform nach der Revisionsschleife | Was das Tor einbringt — eine andere Frage, deshalb eine eigene Zahl |
 | Schreibversuche je Inserat (Median) | Eine 1,0 heißt: das Tor hat nie eingegriffen |
 
+**Das Instrument selbst ist ohne Schlüssel geprüft** (`tests/schichtB.test.js`, 9 Tests).
+Die Messschleife steht als eigene Datei in `runners/messung.js` und bekommt Writer und
+Prüfer injiziert; mit einem **Skript-Writer** lassen sich alle Wege deterministisch und
+kostenlos fahren: Erstversuch konform · erst nach Revision konform (der Fall, für den
+ADR-0030 entstand) · nie konform bis zum Revisionslimit · Modellfehler beendet den Lauf
+nicht · Ausgabengrenze greift vor dem nächsten Aufruf · Nenner von null meldet „nicht
+messbar" statt 100 %. Ohne das war der einzige Beleg für den Harness ein Lauf gegen einen
+ungültigen Schlüssel, der nichts anzeigen konnte — ein Instrument, von dem man nur weiß,
+dass es leer bleiben kann, ist keins.
+
+Was das **nicht** ersetzt: die Zahl selbst. Was ein echtes Modell schreibt, ist ohne
+Schlüssel nicht messbar — das ist keine Lücke, sondern die Definition von Schicht B.
+
 Gemessen wird das **Paar** `listingWriter`/`contractChecker`, nicht der Graph —
 dieselben Funktionen, die auch der Graph aufruft, ohne Routing, HITL und
 Auslieferung, die Schicht A ohnehin vollständig und kostenlos misst (ADR-0030).

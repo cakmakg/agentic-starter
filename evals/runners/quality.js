@@ -72,6 +72,7 @@ if (MOCK_LLM && !TROCKEN) {
 const { cost } = await import("../../src/kernel/observability/costTracker.js");
 const { onLlmCall } = await import("../../src/kernel/llm/adapter.js");
 const { vertragskonformitaet } = await import("../metrics/index.js");
+const { messeEntwuerfe } = await import("./messung.js");
 const { DOMAENEN, ladeAdapter } = await import("../domains/index.js");
 
 // ── Eine Domäne messen ───────────────────────────────────────────────────
@@ -104,80 +105,33 @@ async function fahreDomaene(adapter) {
     aufrufe += 1;
   });
 
-  const entwuerfe = [];
-  let abgebrochen = null;
-
-  try {
-    for (const fall of faelle) {
-      for (const variante of varianten) {
-        if (kostenUsd >= MAX_USD) {
-          abgebrochen = `Ausgabengrenze erreicht (${kostenUsd.toFixed(4)} USD ≥ ${MAX_USD.toFixed(2)})`;
-          break;
-        }
-
-        const eintrag = {
-          id: fall.id,
-          variante,
-          text: null,
-          versuche: 0,
-          konformImErstenVersuch: false,
-          konformAmEnde: false,
-          gruendeErsterVersuch: "",
-          fehler: null,
-        };
-
-        try {
-          // ── Versuch 1: das ist T8 ──────────────────────────────────────
-          let text = await b.schreibe(fall.gegenstand, variante, "");
-          eintrag.versuche = 1;
-          eintrag.text = text;
-
-          let urteil = b.pruefe(text, fall.gegenstand);
-          eintrag.konformImErstenVersuch = urteil.konform;
-          eintrag.gruendeErsterVersuch = urteil.gruende;
-          eintrag.konformAmEnde = urteil.konform;
-
-          // ── Die Revisionsschleife, wie BREMSE6b sie fährt ──────────────
-          // Eigene Zahl, nicht T8: sie sagt, ob das Feedback des Tors den
-          // Writer tatsächlich auf den Vertrag zieht.
-          while (
-            !urteil.konform &&
-            eintrag.versuche < b.maxVersuche &&
-            kostenUsd < MAX_USD
-          ) {
-            text = await b.schreibe(fall.gegenstand, variante, urteil.gruende);
-            eintrag.versuche += 1;
-            urteil = b.pruefe(text, fall.gegenstand);
-            eintrag.konformAmEnde = urteil.konform;
-          }
-        } catch (e) {
-          // Ein Netz- oder Modellfehler beendet nicht den ganzen Lauf: was
-          // bereits gemessen wurde, ist bezahlt und gehört in den Bericht.
-          eintrag.fehler = e.message;
-        }
-
-        entwuerfe.push(eintrag);
-        const zeichen = eintrag.fehler
-          ? "🔴"
-          : eintrag.konformImErstenVersuch
-            ? "🟢"
-            : eintrag.konformAmEnde
-              ? "🟡"
-              : "🔴";
-        console.log(
-          `  ${zeichen} ${eintrag.id} · ${variante.padEnd(14)} ${eintrag.versuche} Versuch(e)` +
-            (eintrag.fehler
-              ? `  FEHLER: ${eintrag.fehler}`
-              : eintrag.konformImErstenVersuch
-                ? ""
-                : `  → ${eintrag.gruendeErsterVersuch.slice(0, 90)}`),
-        );
-      }
-      if (abgebrochen) break;
-    }
-  } finally {
-    abmelden();
-  }
+  // Die Schleife selbst steht in messung.js — dort ist sie mit einem
+  // Skript-Writer prüfbar, ohne einen Modellaufruf zu bezahlen.
+  const { entwuerfe, abgebrochen } = await messeEntwuerfe({
+    schichtB: b,
+    faelle,
+    varianten,
+    maxUsd: MAX_USD,
+    verbrauch: () => kostenUsd,
+    melde: (eintrag) => {
+      const zeichen = eintrag.fehler
+        ? "🔴"
+        : eintrag.konformImErstenVersuch
+          ? "🟢"
+          : eintrag.konformAmEnde
+            ? "🟡"
+            : "🔴";
+      console.log(
+        `  ${zeichen} ${eintrag.id} · ${eintrag.variante.padEnd(14)} ${eintrag.versuche} Versuch(e)` +
+          (eintrag.fehler
+            ? `  FEHLER: ${eintrag.fehler}`
+            : eintrag.konformImErstenVersuch
+              ? ""
+              : `  → ${eintrag.gruendeErsterVersuch.slice(0, 90)}`),
+      );
+    },
+  });
+  abmelden();
 
   const metriken = vertragskonformitaet(entwuerfe);
 

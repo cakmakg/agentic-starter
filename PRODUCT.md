@@ -98,7 +98,7 @@ Jedes Kriterium muss **ausführbar** sein. „Die Datei existiert" ist kein Krit
 |---|---|---|---|---|
 | T1 | `npm run demo` läuft im Mock-Modus durch | Exit-Code `0`, Endstatus des Artefakts `PUBLISHED` | ❌ **FEHLGESCHLAGEN** — `GraphRecursionError` | ✅ **grün** (T2.2) — Exit 0, Endstatus `PUBLISHED` |
 | T2 | Eine Ablehnung stoppt die Veröffentlichung | Nach `approved:false` ist das Artefakt **nicht** `PUBLISHED` und die Queue leer | ❌ **FEHLGESCHLAGEN** — wird veröffentlicht | ✅ **grün** (T2.3) — Artefakt bleibt `AWAITING_APPROVAL`, Queue leer |
-| T3 | `npm test` grün, Zeilenabdeckung in `src/` ≥ 80 % | Ausgabe des Test-Runners | ❌ keine Testinfrastruktur | ✅ **grün** — **120 Tests**, 0 Fehler, **0 todo**; **93,27 %** Zeilenabdeckung (gemessen 2026-09-06; siehe Hinweis unten) |
+| T3 | `npm test` grün, Zeilenabdeckung in `src/` ≥ 80 % | Ausgabe des Test-Runners | ❌ keine Testinfrastruktur | ✅ **grün** — **129 Tests**, 0 Fehler, **0 todo**; **92,10 %** Zeilenabdeckung (gemessen 2026-09-07; siehe Hinweis unten) |
 | T4 | `npm run evals` erzeugt einen Baseline-Bericht | Datierte Berichtsdatei | ❌ kein Harness | ✅ **grün** (T3.3) — `evals/reports/2026-09-03-schicht-a.json`, 20 Aufgaben, zwei Durchgänge identisch. **Seit 2026-09-07 (ADR-0029) je Domäne ein Bericht:** `report` 20 Aufgaben, `immobilien` 23 — der Bericht von `report` ist dabei zeichengleich geblieben |
 | T5 | Approval-Enforcement-Rate = 100 % | Evaluationsmetrik (Definition: `EVALS.md` §3) | ❌ derzeit 0 % | ✅ **grün** — **100 %** (3/3) im ersten Harness-Lauf |
 | T6 | Unauthorized-Action-Rate = 0 % | Evaluationsmetrik (Definition: `EVALS.md` §3) | ❌ verletzt | ✅ **grün** — **0 %** (0/3 eingereihte Aktionen ohne Freigabe) |
@@ -138,11 +138,17 @@ Jedes Kriterium muss **ausführbar** sein. „Die Datei existiert" ist kein Krit
 > Ablauf aus `demo.js` über `tests/workflow.test.js`. Ungeprüft bleibt die
 > HTTP-Verdrahtung selbst.
 >
-> **Warum die Zahl mit mehr Tests gefallen ist** (95,64 % → 93,27 %): der neue Ablauf-Test
-> der Domäne `immobilien` lädt deren Graphen und zieht damit Dateien in den **Nenner**, die
-> vorher gar nicht gemessen wurden. Mehr Code unter Beobachtung bei gleichem Testumfang
-> senkt den Durchschnitt — die Zahl ist gesunken, die Abdeckung gewachsen. Genau deshalb
-> steht hier neben der Prozentzahl immer, was sie enthält.
+> **Warum die Zahl mit mehr Tests zweimal gefallen ist.** Erst 95,64 % → 93,27 %: der
+> Ablauf-Test der Domäne `immobilien` lädt deren Graphen und zieht Dateien in den **Nenner**,
+> die vorher gar nicht gemessen wurden. Dann 93,27 % → 92,10 % (2026-09-07): `tests/schichtB.test.js`
+> zieht `evals/` in den Nenner. Beide Male gilt dasselbe: mehr Code unter Beobachtung senkt den
+> Durchschnitt, die Abdeckung ist gewachsen.
+>
+> Die zweite Bewegung lohnt einen genaueren Blick, weil sie sonst wie eine Lücke aussähe:
+> `evals/runners/messung.js` steht auf **100 %**. Gefallen ist der Schnitt an
+> `evals/metrics/index.js` (42 %) und `evals/domains/immobilien/adapter.js` (76 %) — deren
+> unbedeckte Hälfte ist die **Schicht-A-Mechanik**, und die misst nicht `npm test`, sondern
+> `npm run evals`. Nicht ungetestet, sondern von einem anderen Befehl getestet.
 
 > **T10–T13 tragen keine Baseline aus Phase 0.** Sie entstanden mit ADR-0024 und messen
 > Dinge, die es damals nicht gab; eine leere Baseline-Spalte ist hier ehrlicher als eine
@@ -201,7 +207,7 @@ den Stand, nicht die Absicht: „belegt" steht nur dort, wo ein ausführbarer Na
 | Achse | Stand |
 |---|---|
 | **01 · KI-Anwendungen bauen und ausliefern** | Agentische Systeme ✅ Graph, HITL, Aktions-Isolation, Guardrail (Blockierschwelle seit Phase 5 erreichbar) · Evaluationsgetriebene Entwicklung 🟡 **Schicht A misst beide Domänen und läuft in CI** (20 + 23 Aufgaben, je zwei identische Durchgänge; ADR-0029); Schicht B — der **Ausgabevertrag** hat seit 2026-09-07 einen lauffähigen Harness (ADR-0030), es fehlt der Lauf gegen ein echtes Modell; der **Judge** bleibt Phase 4 · Produktionsbetrieb 🟡 Rate-Limit, Auth, Budget-Schalter, **Trace je Lauf** (T2.5); keine externe Observability-Anbindung · Grounding und ML-Grundlagen ❌ außerhalb des Umfangs |
-| **02 · Grundlagen des Software-Engineering** | Trade-offs ✅ 30 ADRs · Tests ✅ **120 Tests, 93,27 % Zeilenabdeckung** (2026-09-06) · Kontext- und Kostenarchitektur 🟡 Kosten je Lauf und Kontextwachstum werden **gemessen** (3.6 · 3.12), eine Kontextstrategie gibt es nicht (`ARCHITECTURE.md` §4) |
+| **02 · Grundlagen des Software-Engineering** | Trade-offs ✅ 30 ADRs · Tests ✅ **129 Tests, 92,10 % Zeilenabdeckung** (2026-09-07) · Kontext- und Kostenarchitektur 🟡 Kosten je Lauf und Kontextwachstum werden **gemessen** (3.6 · 3.12), eine Kontextstrategie gibt es nicht (`ARCHITECTURE.md` §4) |
 | **03 · Coding-Agenten einsetzen** | Aufgabenvorlage ✅ `docs/development-process.md` · Der Nachweis entsteht erst nach der Messschicht, in Phase 4 — vorher misst niemand, wo der Agent bricht |
 | **04 · Den Build formen** | Umfang, Nicht-Ziele, messbare Kriterien ✅ dieses Dokument · Echter Geschäftskontext 🟡 die Domäne `immobilien` steht als Skelett (T10 grün, 0 Zeilen im Kern); echt wird sie erst mit T12 — einem Lauf auf echten Portfolio-Daten, von einer Beraterin oder einem Berater genehmigt |
 
