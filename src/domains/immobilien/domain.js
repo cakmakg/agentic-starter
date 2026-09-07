@@ -33,6 +33,9 @@ const stateFields = {
   isContractValid: Annotation({ reducer: lastWins, default: () => null }),
   contractFeedback: Annotation({ reducer: keepIfFilled, default: () => "" }),
   staged: Annotation({ reducer: lastWins, default: () => false }),
+  // Fail-closed-Signal des portfolioLoader (ADR-0028). Steht hier etwas,
+  // endet der Lauf — siehe BREMSE1b.
+  portfolioFehler: Annotation({ reducer: lastWins, default: () => null }),
   isDelivered: Annotation({ reducer: lastWins, default: () => false }),
 };
 
@@ -42,6 +45,18 @@ const brakes = [
   (s) =>
     s.isDelivered
       ? { nextAgent: "END", log: ["🧠 BREMSE1: ausgeliefert → END"] }
+      : null,
+
+  // 1b: Kein Objekt ladbar → Schluss. Steht VOR allem anderen, damit kein
+  // halber Lauf entsteht: ohne Objekt gibt es nichts zu schreiben, nichts zu
+  // prüfen und nichts, das ein Mensch genehmigen könnte. Ohne diese Bremse
+  // würde BREMSE4 ("kein Objekt → laden") den Lauf endlos wiederholen.
+  (s) =>
+    s.portfolioFehler
+      ? {
+          nextAgent: "END",
+          log: [`🧠 BREMSE1b: ${s.portfolioFehler} → END (fail-closed)`],
+        }
       : null,
 
   // 2: Inserate gespeichert, aber keine menschliche Entscheidung → HITL.

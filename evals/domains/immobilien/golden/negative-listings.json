@@ -1,0 +1,170 @@
+{
+  "hinweis": "Absichtlich fehlerhafte Inserate aus docs/kundenerkundung-immobilien.md §2. Sie messen NICHT den Writer, sondern das TOR: faengt contractChecker die Verletzung? Ein Pruefer, der nie etwas findet, meldet dieselben 100 % wie einer, der alles findet - dieser Datensatz ist der Unterschied. Stand 2026-09-06: alle zwoelf Faelle laufen gegen den heutigen Checker; vier davon waren bis ADR-0028 rot.",
+  "lesehinweis": "Die Erwartung nennt GRUENDE, nicht 'verletzt ja/nein'. Fast jeder dieser kurzen Texte verletzt nebenbei auch Pflichtfelder (adresse, objektart), weil er kein vollstaendiges Inserat ist. Wer nur 'es gab eine Verletzung' prueft, bekaeme selbst dann gruen, wenn der Checker die eigentliche Sache uebersieht. Geprueft wird deshalb: 'gruende' MUESSEN vorkommen, 'ohne' darf NICHT vorkommen.",
+  "status": {
+    "gilt": "Der heutige Checker erfuellt den Fall.",
+    "luecke": "Kein Fall steht mehr auf 'luecke'. Die vier offenen sind mit ADR-0028 geschlossen - jeder Eintrag sagt im Feld 'was', wie."
+  },
+  "faelle": [
+    {
+      "id": "N01",
+      "datensatz": "P01",
+      "text": "Helle 3-Zimmer-Wohnung mit 82,5 m² Wohnfläche. Nur 5 Minuten zur Straßenbahn.",
+      "erwartet": {
+        "gruende": [
+          "unbelegte Zahl \"5\""
+        ],
+        "ohne": []
+      },
+      "status": "gilt",
+      "was": "Erfundene Fahrtzeit. Die 5 steht in keinem Feld."
+    },
+    {
+      "id": "N02",
+      "datensatz": "P01",
+      "text": "82,5 m², Kaufpreis 450.000 €, 3 Zimmer, Baujahr 1998.",
+      "erwartet": {
+        "gruende": [
+          "unbelegte Zahl \"450000\""
+        ],
+        "ohne": []
+      },
+      "status": "gilt",
+      "was": "Falscher Preis - der Datensatz sagt 449.000."
+    },
+    {
+      "id": "N03",
+      "datensatz": "P05",
+      "text": "Moderne 2-Zimmer-Wohnung, 74 m², 1.480 € monatlich.",
+      "erwartet": {
+        "gruende": [
+          "Pflichtfeld \"adresse\" fehlt im Text"
+        ],
+        "ohne": []
+      },
+      "status": "gilt",
+      "was": "Pflichtfeld Adresse fehlt vollstaendig."
+    },
+    {
+      "id": "N04",
+      "datensatz": "P01",
+      "text": "Kaufpreis 450.000 €.",
+      "erwartet": {
+        "gruende": [
+          "unbelegte Zahl \"450000\"",
+          "Pflichtfeld \"wohnflaeche_m2\" (82.5) fehlt im Text"
+        ],
+        "ohne": []
+      },
+      "status": "gilt",
+      "was": "Wie N02, aber als Minimaltext: hier muessen ZUSAETZLICH die fehlenden Pflichtfelder auffallen. Ohne diesen Unterschied waere der Fall eine Dublette von N02."
+    },
+    {
+      "id": "N05",
+      "datensatz": "P04",
+      "text": "Kaufpreis 695000 €, Wohnfläche 124 m², 5 Zimmer.",
+      "erwartet": {
+        "gruende": [],
+        "ohne": [
+          "unbelegte Zahl"
+        ]
+      },
+      "status": "gilt",
+      "was": "Normalisierung: 695000 im Text und 695.000 im Dokument sind derselbe Wert. Kein Zahlenvorwurf erlaubt. (Pflichtfeld-Gruende bleiben, der Text ist kein volles Inserat.)"
+    },
+    {
+      "id": "N06",
+      "datensatz": "P04",
+      "text": "Kaufpreis 695 000 €, Wohnfläche 124 m², 5 Zimmer.",
+      "erwartet": {
+        "gruende": [],
+        "ohne": [
+          "unbelegte Zahl"
+        ]
+      },
+      "status": "gilt",
+      "was": "Tausendertrennzeichen als Leerzeichen. Geschlossen (ADR-0028): extractNumbers zieht eine Ziffer und eine folgende Dreiergruppe zusammen, bevor gesucht wird - auch beim geschuetzten Leerzeichen aus Textverarbeitungen."
+    },
+    {
+      "id": "N07",
+      "datensatz": "P06",
+      "text": "88 m², 3 Zimmer, 389.500 €, zwei Balkone.",
+      "erwartet": {
+        "gruende": [],
+        "ohne": [
+          "ausgeschriebene Zahl",
+          "unbelegte Zahl"
+        ]
+      },
+      "status": "gilt",
+      "was": "ERWARTUNG GEDREHT (ADR-0028). Die Beschreibung von P06 lautet selbst 'mit zwei Balkonen' - die Zahl steht also im Datensatz, nur als Wort in einem Textfeld. Belegt ist, was aus einem Feld stammt; die Beschreibung zu zitieren ist kein Erfinden. Der urspruengliche Verdacht war richtig, das Ziel aber falsch gewaehlt: der echte Fall ist N11, wo dieselbe Zahl NICHT im Datensatz steht. Zahlwoerter erkennt der Checker seit ADR-0028 - sonst waere 'fuenf Minuten zur Bahn' der einfachste Weg an ihm vorbei."
+    },
+    {
+      "id": "N08",
+      "datensatz": "P03",
+      "text": "61 m², 2 Zimmer, 315.000 €, 7 Minuten zum Bahnhof.",
+      "erwartet": {
+        "gruende": [
+          "unbelegte Zahl \"7\""
+        ],
+        "ohne": []
+      },
+      "status": "gilt",
+      "was": "Erfundene Fahrtzeit, zweiter Fall - andere Zahl, anderer Datensatz."
+    },
+    {
+      "id": "N09",
+      "datensatz": "P09",
+      "text": "103 m², 4 Zimmer, 2.350 € kalt, Etage 6. OG.",
+      "erwartet": {
+        "gruende": [
+          "unbelegte Zahl \"6\""
+        ],
+        "ohne": []
+      },
+      "status": "gilt",
+      "was": "Wert fuer ein LEERES Feld erfunden: P09 hat keine Etage. Genau der Fall, den die Vertragsregel fuer fehlende Felder verbietet."
+    },
+    {
+      "id": "N10",
+      "datensatz": "P10",
+      "text": "68 m², 2 Zimmer, 299.000 €, Baujahr 2001, Energieklasse B.",
+      "erwartet": {
+        "gruende": [
+          "Energieausweis \"B\" behauptet, das Feld ist leer"
+        ],
+        "ohne": [
+          "unbelegte Zahl"
+        ]
+      },
+      "status": "gilt",
+      "was": "P10 HAT Baujahr 2001 - die 2001 ist belegt (das Dokument nannte sie faelschlich erfunden). Erfunden ist die Energieklasse B: P10 hat kein Energieausweis-Feld. Weil 'B' keine Ziffer ist, sah der Zahlenpruefer sie nie; seit ADR-0028 pruefen wir das Feld eigens - in beide Richtungen."
+    },
+    {
+      "id": "N11",
+      "datensatz": "P02",
+      "text": "96 m², 3 Zimmer, 2.150 €, 2 Balkone.",
+      "erwartet": {
+        "gruende": [
+          "unbelegte Zahl \"2\""
+        ],
+        "ohne": []
+      },
+      "status": "gilt",
+      "was": "Erfundene Balkonanzahl als Ziffer - der Gegenfall zu N07. P02 nennt in seiner Beschreibung nur 'Balkon', keine Menge; die 2 stammt also aus keinem Feld. Das Paar N07/N11 zeigt, worauf es ankommt: nicht die Schreibweise entscheidet, sondern die Herkunft."
+    },
+    {
+      "id": "N12",
+      "datensatz": "P01",
+      "text": "82,5 m², 3 Zimmer, 449.000 €, 3,57 % Provision.",
+      "erwartet": {
+        "gruende": [],
+        "ohne": [
+          "unbelegte Zahl \"3.57\""
+        ]
+      },
+      "status": "gilt",
+      "was": "War ein FALSCHPOSITIV. Die Provision steht im Datensatz, wurde aber nicht als Beleg gelesen - der Writer haette gelernt, eine in Deutschland vorgeschriebene Angabe wegzulassen. Seit ADR-0028 sind Zahlen aus den Textfeldern des Kunden belegt."
+    }
+  ]
+}

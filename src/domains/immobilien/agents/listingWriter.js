@@ -52,6 +52,10 @@ function buildMockListing(property, portal) {
     property.beschreibung,
   ];
   if (property.baujahr) teile.push(`Baujahr ${property.baujahr}.`);
+  // Pflicht, sobald das Feld gefüllt ist (ADR-0028, Vertragssatz 4): der
+  // Energieausweis ist keine Zahl, also prüft ihn der contractChecker eigens.
+  if (property.energieausweis)
+    teile.push(`Energieklasse ${property.energieausweis}.`);
   if (property.etage) teile.push(`Etage ${property.etage}.`);
   if (property.stellplatz) teile.push(`${property.stellplatz} Stellplatz.`);
   if (property.fotos) teile.push(`${property.fotos} Fotos.`);
