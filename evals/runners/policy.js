@@ -7,6 +7,15 @@
 // nicht aus dem Event-Bus. Das ist der Grund, warum der Trace vor dem Harness
 // entstand (I1): der Bus zeigt an und vergisst, der Trace bleibt und ist
 // nachprüfbar — wer eine Zahl anzweifelt, kann die Zeile aufschlagen.
+//
+// DOMÄNENFREI seit Phase 5. Diese Datei nennt keine Domäne, keinen Agenten und
+// keinen Aktionstyp mehr. Was eine Domäne ausmacht, bringt ihr Adapter mit
+// (`evals/domains/<domäne>/adapter.js`); WELCHE Domänen gefahren werden, steht
+// in `evals/domains/index.js`. Damit gilt das Prüfkriterium aus ADR-0018 auch
+// für die Messschicht: eine zweite gemessene Domäne ändert hier null Zeilen.
+//
+//   npm run evals                  # alle registrierten Domänen
+//   npm run evals -- immobilien    # nur diese
 
 import fs from "node:fs";
 import os from "node:os";
@@ -40,27 +49,14 @@ if (!MOCK_LLM) {
   process.exit(1);
 }
 
-const { guardrailSchwellen } = await import("../../src/domains/report/domain.js");
-const { getRunner } = await import("../../src/kernel/registry.js");
-const { getArtifact } =
-  await import("../../src/domains/report/agents/fileSaver.js");
-const { enqueueAction, getQueue, startActionWorker, stopActionWorker } =
-  await import("../../src/domains/report/actions.js");
 const { cost } = await import("../../src/kernel/observability/costTracker.js");
 const { onLlmCall } = await import("../../src/kernel/llm/adapter.js");
 const { berechneMetriken, vertragstreue } = await import("../metrics/index.js");
-
-const { startWorkflow, resolveApproval } = getRunner("report");
-
-const datensatz = JSON.parse(
-  fs.readFileSync(
-    path.join(evalsDir, "domains", "report", "golden", "tasks.json"),
-    "utf8",
-  ),
-);
+const { DOMAENEN, ladeAdapter } = await import("../domains/index.js");
 
 // ── Einen Workflow-Fall ausführen ────────────────────────────────────────
-async function laufWorkflow(aufgabe) {
+async function laufWorkflow(aufgabe, adapter) {
+  const { startWorkflow, resolveApproval } = adapter.runner;
   const threadId = crypto.randomUUID();
   const inputTokens = [];
   let kostenUsd = 0;
@@ -97,7 +93,7 @@ async function laufWorkflow(aufgabe) {
   // Der Trace ist die Quelle für Reihenfolge und Bedrohungswert.
   const zeilen = leseTrace(threadId);
   const sequenz = zeilen.filter((z) => z.type === "node").map((z) => z.node);
-  const guardrailZeile = zeilen.find((z) => z.node === "guardrail");
+  const guardrailZeile = zeilen.find((z) => z.node === adapter.eingang);
   const threatScore = guardrailZeile?.threatScore ?? null;
 
   return {
@@ -107,10 +103,12 @@ async function laufWorkflow(aufgabe) {
     genehmigung: aufgabe.genehmigung,
     sequenz,
     endstatus,
-    artefaktstatus: getArtifact(threadId)?.status ?? null,
-    queueEintraege: getQueue().filter((a) => a.threadId === threadId).length,
+    artefaktstatus: adapter.artefaktstatus(threadId),
+    queueEintraege: adapter.aktionen
+      .getQueue()
+      .filter((a) => a.threadId === threadId).length,
     threatScore,
-    guardrail: bewerteGuardrail(sequenz, threatScore, aufgabe),
+    guardrail: bewerteGuardrail(sequenz, threatScore, aufgabe, adapter),
     llmAufrufe: inputTokens.length,
     inputTokens,
     kostenUsd,
@@ -133,18 +131,22 @@ function leseTrace(threadId) {
 }
 
 // Drei Wege des Guardrails, aus dem Trace abgeleitet.
-function bewerteGuardrail(sequenz, threatScore, aufgabe) {
+function bewerteGuardrail(sequenz, threatScore, aufgabe, adapter) {
   if (aufgabe.gedrosselt) return "gedrosselt";
-  // Blockiert wird STRUKTURELL erkannt: der Lauf endet nach dem Guardrail.
+  // Blockiert wird STRUKTURELL erkannt: der Lauf endet nach dem Eingangsknoten.
   // Die zweite Grenze kommt aus der Domäne, nicht aus einer Zahl an dieser
   // Stelle — sonst misst der Harness eine Schwelle, die das System nicht hat.
-  if (sequenz.length === 1 && sequenz[0] === "guardrail") return "blockiert";
-  if (threatScore >= guardrailSchwellen.sanitisieren) return "sanitisiert";
+  if (sequenz.length === 1 && sequenz[0] === adapter.eingang)
+    return "blockiert";
+  if (threatScore >= adapter.guardrailSchwellen.sanitisieren)
+    return "sanitisiert";
   return "durchgelassen";
 }
 
 // ── Einen Aktions-Fall ausführen ─────────────────────────────────────────
-async function laufAktion(aufgabe) {
+async function laufAktion(aufgabe, adapter) {
+  const { enqueueAction, getQueue, startActionWorker, stopActionWorker } =
+    adapter.aktionen;
   const threadId = crypto.randomUUID();
   let eingereiht = true;
   let id = null;
@@ -225,108 +227,144 @@ function pruefe(lauf, sequenzen) {
     ab.push(`guardrail: ${lauf.guardrail} statt ${e.guardrail}`);
   if (e.llmAufrufe !== undefined && lauf.llmAufrufe !== e.llmAufrufe)
     ab.push(`llmAufrufe: ${lauf.llmAufrufe} statt ${e.llmAufrufe}`);
-  if (e.writerAufrufe !== undefined) {
-    const n = lauf.sequenz.filter((s) => s === "writer").length;
-    if (n !== e.writerAufrufe)
-      ab.push(`writerAufrufe: ${n} statt ${e.writerAufrufe}`);
-  }
-  if (e.criticAufrufe !== undefined) {
-    const n = lauf.sequenz.filter((s) => s === "critic").length;
-    if (n !== e.criticAufrufe)
-      ab.push(`criticAufrufe: ${n} statt ${e.criticAufrufe}`);
+
+  // Knotenzählungen generisch: jede Erwartung `<knoten>Aufrufe` zählt, wie oft
+  // der Knoten in der Sequenz steht. Vorher standen `writerAufrufe` und
+  // `criticAufrufe` hier als feste Namen — also zwei Agenten der Domäne
+  // `report` mitten im Runner. Der Datensatz bleibt unverändert; nur die Stelle,
+  // die ihn liest, weiß jetzt nichts mehr über Agentennamen.
+  for (const [schluessel, erwartet] of Object.entries(e)) {
+    const treffer = /^(.+)Aufrufe$/.exec(schluessel);
+    if (!treffer || treffer[1] === "llm") continue;
+    const n = lauf.sequenz.filter((s) => s === treffer[1]).length;
+    if (n !== erwartet) ab.push(`${schluessel}: ${n} statt ${erwartet}`);
   }
   return lauf;
 }
 
-async function durchgang() {
+async function durchgang(adapter) {
   const laeufe = [];
-  for (const aufgabe of datensatz.aufgaben) {
+  for (const aufgabe of adapter.datensatz.aufgaben) {
     const lauf =
       aufgabe.art === "aktion"
-        ? await laufAktion(aufgabe)
-        : await laufWorkflow(aufgabe);
-    laeufe.push(pruefe(lauf, datensatz.sequenzen));
+        ? await laufAktion(aufgabe, adapter)
+        : await laufWorkflow(aufgabe, adapter);
+    laeufe.push(pruefe(lauf, adapter.datensatz.sequenzen));
   }
   return laeufe;
 }
 
-// ── Ausführen: zwei Durchgänge, weil Determinismus beweispflichtig ist ────
+// ── Eine Domäne messen: zwei Durchgänge, weil Determinismus beweispflichtig ist
+async function fahreDomaene(adapter) {
+  // Jede Domäne beginnt bei null. Ohne das trüge die zweite den Verbrauch der
+  // ersten mit — und Metrik 3.6 meldete für sie eine Zahl, die zur Hälfte einer
+  // anderen Domäne gehört. Der Kill-Switch ist ein Prozesszustand, kein
+  // Laufzustand: er muss ausdrücklich zurückgesetzt werden.
+  cost.reset();
+
+  const erster = await durchgang(adapter);
+  const zweiter = await durchgang(adapter);
+
+  const metriken = berechneMetriken(erster, zweiter);
+  const treue = vertragstreue(erster);
+
+  // Der Determinismus-Nachweis vergleicht die MESSWERTE beider Durchgänge —
+  // nicht den Bericht, der einen Zeitstempel trägt.
+  const metrikenZweiter = berechneMetriken(zweiter, erster);
+  const deterministisch =
+    JSON.stringify(metriken) === JSON.stringify(metrikenZweiter);
+
+  const bericht = {
+    erzeugt: new Date().toISOString(),
+    schicht: "A",
+    modus: "mock",
+    domaene: adapter.name,
+    aufgaben: adapter.datensatz.aufgaben.length,
+    deterministisch,
+    vertragstreue: treue,
+    metriken,
+  };
+
+  // Je Domäne eine Berichtsdatei. Ein gemeinsamer Name überschriebe die erste
+  // Domäne mit der zweiten — der Bericht hieße dann „Schicht A" und meinte nur
+  // die letzte.
+  const berichtDir = path.join(evalsDir, "reports");
+  fs.mkdirSync(berichtDir, { recursive: true });
+  const datei = path.join(
+    berichtDir,
+    `${bericht.erzeugt.slice(0, 10)}-schicht-a-${adapter.name}.json`,
+  );
+  fs.writeFileSync(datei, JSON.stringify(bericht, null, 2) + "\n");
+
+  // ── Konsolenausgabe ────────────────────────────────────────────────────
+  const proz = (w) =>
+    w === null ? "nicht messbar" : `${(w * 100).toFixed(1)} %`;
+  const zeile = (m) =>
+    `  ${m.name.padEnd(38)} ${proz(m.wert).padStart(13)}   (${m.zaehler}/${m.nenner})`;
+
+  console.log(
+    `\nSchicht A · Domäne ${bericht.domaene} · ${bericht.aufgaben} Aufgaben · Mock\n`,
+  );
+  console.log(zeile(metriken["3.1"]));
+  console.log(zeile(metriken["3.2"]));
+  console.log(zeile(metriken["3.3"]));
+  console.log(zeile(metriken["3.4"]));
+  console.log(
+    `  ${metriken["3.5"].name.padEnd(38)} P ${proz(metriken["3.5"].praezision)} · R ${proz(metriken["3.5"].trefferquote)}   (TP ${metriken["3.5"].tp} · FP ${metriken["3.5"].fp} · FN ${metriken["3.5"].fn})`,
+  );
+  console.log(
+    `  ${metriken["3.6"].name.padEnd(38)} Median ${metriken["3.6"].median?.toFixed(6)} USD   (${metriken["3.6"].nenner})`,
+  );
+  console.log(
+    `  ${metriken["3.12"].name.padEnd(38)} Median ×${metriken["3.12"].medianVerhaeltnis?.toFixed(2)} · p90 ×${metriken["3.12"].p90Verhaeltnis?.toFixed(2)} · Spitze ${metriken["3.12"].p90SpitzeTokens} Token`,
+  );
+
+  console.log(
+    `\n  Vertragstreue: ${treue.zaehler}/${treue.nenner} Aufgaben wie erwartet`,
+  );
+  for (const a of treue.abweichungen) {
+    console.log(`   🔴 ${a.id} (${a.gruppe})`);
+    for (const p of a.punkte) console.log(`      ${p}`);
+  }
+  console.log(
+    `  Determinismus (zwei Durchgänge): ${deterministisch ? "🟢 identisch" : "🔴 abweichend"}`,
+  );
+  console.log(`\n  Bericht: ${path.relative(wurzel, datei)}\n`);
+
+  // Ein Harness, der immer grün meldet, misst nichts. Rot ist ein Ergebnis,
+  // kein Absturz — der Exit-Code trägt es nach CI.
+  const bestanden =
+    deterministisch &&
+    treue.zaehler === treue.nenner &&
+    metriken["3.1"].erfuellt !== false &&
+    metriken["3.2"].erfuellt !== false &&
+    metriken["3.3"].erfuellt !== false &&
+    metriken["3.4"].erfuellt !== false;
+
+  return bestanden;
+}
+
+// ── Ausführen ────────────────────────────────────────────────────────────
 fs.mkdirSync(traceDir, { recursive: true });
 
-const erster = await durchgang();
-const zweiter = await durchgang();
+// Ohne Argument alle registrierten Domänen. Eine einzelne zu fahren ist für die
+// Entwicklung gedacht — in CI läuft immer der volle Satz, sonst bliebe eine
+// Domäne ungemessen, während der Befehl grün meldet.
+const gewaehlt = process.argv.slice(2).filter((a) => !a.startsWith("-"));
+const zuFahren = gewaehlt.length ? gewaehlt : DOMAENEN;
 
-const metriken = berechneMetriken(erster, zweiter);
-const treue = vertragstreue(erster);
-
-// Der Determinismus-Nachweis vergleicht die MESSWERTE beider Durchgänge —
-// nicht den Bericht, der einen Zeitstempel trägt.
-const metrikenZweiter = berechneMetriken(zweiter, erster);
-const deterministisch =
-  JSON.stringify(metriken) === JSON.stringify(metrikenZweiter);
-
-const bericht = {
-  erzeugt: new Date().toISOString(),
-  schicht: "A",
-  modus: "mock",
-  domaene: "report",
-  aufgaben: datensatz.aufgaben.length,
-  deterministisch,
-  vertragstreue: treue,
-  metriken,
-};
-
-const reportDir = path.join(evalsDir, "reports");
-fs.mkdirSync(reportDir, { recursive: true });
-const datei = path.join(
-  reportDir,
-  `${bericht.erzeugt.slice(0, 10)}-schicht-a.json`,
-);
-fs.writeFileSync(datei, JSON.stringify(bericht, null, 2) + "\n");
-
-// ── Konsolenausgabe ──────────────────────────────────────────────────────
-const proz = (w) =>
-  w === null ? "nicht messbar" : `${(w * 100).toFixed(1)} %`;
-const zeile = (m) =>
-  `  ${m.name.padEnd(38)} ${proz(m.wert).padStart(13)}   (${m.zaehler}/${m.nenner})`;
-
-console.log(
-  `\nSchicht A · Domäne ${bericht.domaene} · ${bericht.aufgaben} Aufgaben · Mock\n`,
-);
-console.log(zeile(metriken["3.1"]));
-console.log(zeile(metriken["3.2"]));
-console.log(zeile(metriken["3.3"]));
-console.log(zeile(metriken["3.4"]));
-console.log(
-  `  ${metriken["3.5"].name.padEnd(38)} P ${proz(metriken["3.5"].praezision)} · R ${proz(metriken["3.5"].trefferquote)}   (TP ${metriken["3.5"].tp} · FP ${metriken["3.5"].fp} · FN ${metriken["3.5"].fn})`,
-);
-console.log(
-  `  ${metriken["3.6"].name.padEnd(38)} Median ${metriken["3.6"].median?.toFixed(6)} USD   (${metriken["3.6"].nenner})`,
-);
-console.log(
-  `  ${metriken["3.12"].name.padEnd(38)} Median ×${metriken["3.12"].medianVerhaeltnis?.toFixed(2)} · p90 ×${metriken["3.12"].p90Verhaeltnis?.toFixed(2)} · Spitze ${metriken["3.12"].p90SpitzeTokens} Token`,
-);
-
-console.log(
-  `\n  Vertragstreue: ${treue.zaehler}/${treue.nenner} Aufgaben wie erwartet`,
-);
-for (const a of treue.abweichungen) {
-  console.log(`   🔴 ${a.id} (${a.gruppe})`);
-  for (const p of a.punkte) console.log(`      ${p}`);
+const ergebnisse = [];
+for (const name of zuFahren) {
+  const adapter = await ladeAdapter(name);
+  ergebnisse.push([name, await fahreDomaene(adapter)]);
 }
-console.log(
-  `  Determinismus (zwei Durchgänge): ${deterministisch ? "🟢 identisch" : "🔴 abweichend"}`,
-);
-console.log(`\n  Bericht: ${path.relative(wurzel, datei)}\n`);
 
-// Ein Harness, der immer grün meldet, misst nichts. Rot ist ein Ergebnis,
-// kein Absturz — der Exit-Code trägt es nach CI.
-const bestanden =
-  deterministisch &&
-  treue.zaehler === treue.nenner &&
-  metriken["3.1"].erfuellt !== false &&
-  metriken["3.2"].erfuellt !== false &&
-  metriken["3.3"].erfuellt !== false &&
-  metriken["3.4"].erfuellt !== false;
+if (ergebnisse.length > 1) {
+  console.log(
+    `  Gesamt: ${ergebnisse
+      .map(([n, ok]) => `${n} ${ok ? "🟢" : "🔴"}`)
+      .join(" · ")}\n`,
+  );
+}
 
-process.exit(bestanden ? 0 : 1);
+process.exit(ergebnisse.every(([, ok]) => ok) ? 0 : 1);
