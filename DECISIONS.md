@@ -6,7 +6,7 @@
 > Reift eine Regel aus `.gehirn/regeln.md` zu einer Architekturentscheidung, wandert sie
 > hierher und wird dort auf eine Zeile gekürzt.
 
-**Stand:** Phase 5 · **Zuletzt aktualisiert:** 2026-09-06 · **27 Einträge**
+**Stand:** Phase 5 · **Zuletzt aktualisiert:** 2026-09-07 · **30 Einträge**
 
 ---
 
@@ -516,3 +516,168 @@ und abgespielt wird die ganze Historie. Es gibt **keine Sperre zwischen Prozesse
 Ablauf dieses Repos ist seriell. Beides steht als eigene Zeile in `ARCHITECTURE.md` §4. Wer
 Dauerbetrieb braucht, tauscht diese Schicht gegen eine Datenbank — die Schnittstelle
 (`appendLog`, `readLog`, `createArtifactStore`) ist genau dafür klein gehalten.
+
+---
+
+## ADR-0028 — Der Ausgabevertrag der Domäne `immobilien`
+
+**Kontext.** Der `contractChecker` prüfte bis hierher eine einzige Regel: jede Zahl im
+Inserat muss aus einem Zahlenfeld stammen. Der Datensatz aus der Kundenerkundung (10 Objekte,
+12 absichtlich fehlerhafte Inserate) hat diese Regel zum ersten Mal ausgeführt — und sie hielt
+an vier Stellen nicht. Zwei davon waren **Falschvorwürfe**, und die sind gefährlicher als
+übersehene Fehler: der Writer bekommt sie als Feedback und lernt daraus, korrekte Angaben
+wegzulassen.
+
+**Entscheidung — der Vertrag in vier Sätzen.**
+
+1. **Belegt ist, was in einem Feld steht — auch in einem Textfeld.** Adresse, Objektart,
+   Beschreibung und Provision hat die Kundin oder der Kunde selbst geschrieben; sie zu
+   zitieren ist kein Erfinden. Steht in der Beschreibung „mit zwei Balkonen", darf das Inserat
+   zwei Balkone nennen. Dass diese Menge nur als Wort dasteht, ändert nichts an ihrer Herkunft.
+2. **Leer heißt auslassen.** Für ein leeres Feld darf kein Wert entstehen — weder Zahl noch
+   Buchstabe. **Kein `nicht angegeben`-Vermerk:** die Regel bleibt damit rein negativ und ist
+   prüfbar, ohne dass der Writer alle fehlenden Felder aufzählen müsste. Ein Inserat, das seine
+   Lücken auflistet, liest sich zudem wie ein Formular.
+3. **Die Provision gehört ins Inserat.** Sie steht als Textfeld im Datensatz. Sie als
+   „unbelegte Zahl" abzulehnen hieß, dem Writer das Weglassen einer in Deutschland
+   vorgeschriebenen Angabe anzutrainieren.
+4. **Der Energieausweis wird eigens geprüft**, weil er kein Zahlenfeld ist. Ist er gefüllt,
+   muss die Klasse im Text stehen und stimmen; ist er leer, darf keine behauptet werden. Ein
+   reiner Zahlenvergleich kann einen Buchstaben grundsätzlich nicht sehen.
+
+**Dazu zwei Defekte, die derselbe Datensatz aufgedeckt hat** — keine Vertragsfragen, sondern
+Rechenfehler:
+
+- `normalizeNumber` entfernte **alle** Punkte, auch den Dezimalpunkt des **Feldwerts**: `82.5`
+  wurde zu `"825"` und passte nie zum korrekt geschriebenen `82,5` im Text. Ein Objekt mit
+  dezimaler Wohnfläche klagte sich damit selbst an. Ein Zahlenwert wird jetzt nicht mehr wie
+  Text behandelt.
+- Ein Leerzeichen als Tausendertrennzeichen (`695 000`, auch das geschützte aus
+  Textverarbeitungen) zerfiel in zwei Zahlen, die beide als unbelegt galten.
+
+**Und eine Verhaltensänderung am `portfolioLoader`: fail-closed.** Findet sich keine oder eine
+unbekannte Objekt-ID, endet der Lauf, statt still auf den ersten Datensatz auszuweichen. Der
+alte Rückfall war bequem und gefährlich: ein Inserat für das **falsche** Objekt geht an ein
+Portal und trägt einen echten Preis; ein abgebrochener Lauf kostet eine Minute. Dieselbe
+Haltung wie an der Genehmigungskante (T2.3). Getragen wird der Abbruch von `portfolioFehler`
+im State und **BREMSE1b** — ohne sie schickte BREMSE4 („kein Objekt → laden") den Lauf endlos
+im Kreis, also genau in den Defekt, mit dem dieses Repo in Phase 0 angefangen hat. Deshalb
+prüft ihn ein Lauf durch den echten Graphen und nicht nur ein Unit-Test.
+
+**Konsequenz.** Das Tor prüft **Herkunft, nicht Wahrheit**: ist die Beschreibung der Kundin
+oder des Kunden falsch, erbt das Inserat den Fehler. Die Daten des Kunden zu bestreiten ist
+nicht Aufgabe dieses Systems — diese Grenze steht im Dateikopf des Checkers, damit sie
+niemand für ein Versehen hält.
+
+Eine Erwartung im Datensatz hat sich durch Satz 1 **gedreht**: N07 („zwei Balkone") galt als
+Fund, ist aber belegt — P06 schreibt es selbst in seiner Beschreibung. Der Verdacht war
+richtig, das Ziel falsch gewählt; der echte Fall ist N11, wo dieselbe Zahl in keinem Feld
+steht. Beide bleiben im Datensatz: das Paar zeigt, dass die Herkunft entscheidet und nicht die
+Schreibweise.
+
+**Was das NICHT ist.** Kein Messwert für T8. Im Mock-Modus ersetzt `listingWriter` die
+Modellantwort durch einen aus dem Datensatz gebauten Text — der Vertrag ist dann per
+Konstruktion erfüllt. Gemessen wird hier das **Tor**, nicht der Writer. T8 selbst braucht ein
+echtes Modell (Schicht B, ADR-0019).
+
+
+## ADR-0029 — Der Harness wird über Adapter parametrisiert, nicht über Verzweigungen
+
+**Kontext.** `evals/runners/policy.js` war an sechs Stellen an die Domäne `report` gebunden:
+Guardrail-Schwellen, Runner, Artefaktabfrage, ActionQueue, Datensatzpfad und das Feld
+`domaene` im Bericht — dazu zwei Agentennamen (`writerAufrufe`, `criticAufrufe`) mitten in der
+Erwartungsprüfung. Die Domäne `immobilien` lief seit Phase 5, war bei T10 und T11 grün und
+hatte seit dem Vertragsschritt 27 Tests. Von `npm run evals` wurde sie **nicht angefasst**.
+Der Befehl meldete grün und meinte dabei die halbe Wahrheit — genau die Form von Beweis, die
+dieses Repo bestreitet.
+
+**Entscheidung — fünf Teile.**
+
+1. **Je Domäne ein Adapter** unter `evals/domains/<domäne>/adapter.js` mit sechs Feldern:
+   `name`, `eingang`, `guardrailSchwellen`, `runner`, `artefaktstatus`, `aktionen`,
+   `datensatz`. Der Runner kennt danach keine Domäne, keinen Agenten und keinen Aktionstyp.
+   Die Naht liegt an denselben Stellen wie im Kern (ADR-0018): Verfahren im Runner, Bedeutung
+   im Adapter. `artefaktstatus` ist das deutlichste Beispiel — `report` endet auf `PUBLISHED`,
+   `immobilien` auf `DELIVERED`, und der Runner vergleicht nur Zeichenketten.
+2. **Eine explizite Liste** in `evals/domains/index.js` statt eines Verzeichnis-Scans. Ein
+   Scan nähme eine Domäne still aus der Messung, sobald ihre Datei anders heißt, und der
+   Harness meldete weiter grün. Eine fehlende oder falsch benannte Domäne muss laut sein;
+   `ladeAdapter` prüft deshalb auch die sechs Pflichtfelder und den Namen.
+3. **Knotenzählungen generisch.** Eine Erwartung `<knoten>Aufrufe` zählt, wie oft der Knoten
+   in der Sequenz steht. Die Datensätze bleiben unverändert — nur die Stelle, die sie liest,
+   weiß nichts mehr über Agentennamen.
+4. **Ein Bericht je Domäne** (`<datum>-schicht-a-<domäne>.json`). Ein gemeinsamer Name
+   überschriebe die erste Domäne mit der zweiten; der Bericht hieße „Schicht A" und meinte
+   nur die letzte. Der Exit-Code ist gemeinsam: eine grüne Domäne rettet keine rote.
+5. **Der Kostenzähler wird zwischen Domänen zurückgesetzt.** Er ist ein Prozesszustand, kein
+   Laufzustand. Ohne Rücksetzen trüge die zweite Domäne den Verbrauch der ersten mit, und
+   Metrik 3.6 meldete für sie eine Zahl, die zur Hälfte einer anderen Domäne gehört.
+
+**Prüfkriterium, und es ist erfüllt.** Der Bericht der Domäne `report` ist nach dem Umbau
+**Zeichen für Zeichen derselbe** wie der vom 2026-09-06 — bis auf den Zeitstempel. Ein
+Refactor der Messschicht, der die Messwerte verschiebt, wäre wertlos: man wüsste danach nicht
+mehr, ob sich das System oder nur sein Maßstab geändert hat.
+
+**Konsequenz.** Eine dritte gemessene Domäne kostet einen Adapter und einen Eintrag in der
+Liste — null Zeilen im Runner. Das Prüfkriterium aus ADR-0018 gilt damit auch für die
+Messschicht und nicht nur für `src/kernel/`. Dafür gibt es jetzt zwei Registrierungsstellen
+(`src/kernel/registry.js` und `evals/domains/index.js`), die auseinanderlaufen können: eine
+registrierte, aber nicht gemessene Domäne fiele niemandem auf. Das bleibt eine offene Grenze.
+
+**Was das NICHT ist.** Kein Messwert für T8. Schicht A misst Routing und Richtlinien; im
+Mock-Modus baut `listingWriter` seinen Text aus dem Datensatz, der Vertrag ist per
+Konstruktion erfüllt und die Revisionsschleife wird nie erreicht. T8 braucht ein echtes
+Modell (Schicht B, ADR-0019).
+
+
+## ADR-0030 — T8 misst den ERSTEN Versuch, nicht das Ergebnis der Revisionsschleife
+
+**Kontext.** T8 („Vertragskonformität = 100 %") ist das letzte offene Kriterium der Phase 5,
+das eine Zahl braucht. Beim Bau des Schicht-B-Harness stellte sich die Frage, was ein „Lauf"
+im Sinne von `EVALS.md` §3.8 überhaupt ist. Der Graph darf nach einer Beanstandung erneut
+schreiben: `contractChecker` entfernt das betroffene Portal, BREMSE6b schickt den Lauf zurück
+zum `listingWriter`, und das bis zu fünfmal. Zählt man das Ergebnis **nach** dieser Schleife,
+steht am Ende fast zwangsläufig 100 % — und zwar unabhängig davon, wie gut der Writer ist.
+
+**Entscheidung — fünf Teile.**
+
+1. **T8 ist die Konformität im ERSTEN Versuch.** Nenner: alle erzeugten Inserate. Zähler: die,
+   die das Tor auf Anhieb passieren. Nur diese Zahl sagt etwas über den Writer. Der Wert
+   **nach** der Revisionsschleife wird als eigene Kennzahl berichtet — er sagt, was das Tor
+   einbringt, und beantwortet eine andere Frage. Beide stehen nebeneinander im Bericht,
+   damit niemand die bequemere für T8 hält.
+2. **Gemessen wird das PAAR Writer/Tor, nicht der Graph.** Schicht B ruft `listingWriterNode`
+   und `contractCheckerNode` direkt auf — dieselben Funktionen, die auch der Graph aufruft,
+   keine nachgebaute Schleife. Routing, HITL und Auslieferung misst Schicht A vollständig und
+   kostenlos; sie hier mitzufahren kostete Geld und brächte keine Aussage über den Vertrag.
+3. **Schicht B fährt gegen die zehn Datensätze der Kundenerkundung**, nicht gegen die
+   Entwicklungs-Fixture — genau umgekehrt zu Schicht A (ADR-0029). Der Grund ist derselbe in
+   beide Richtungen: Schicht A braucht Wiederholbarkeit und kommt mit einem Objekt aus;
+   Schicht B braucht **Bandbreite echter Feldbelegungen** — leere Etage, fehlender
+   Energieausweis, dezimale Wohnfläche, Provision als Text. Das sind die Stellen, an denen ein
+   Modell den Vertrag verletzt.
+4. **Ein Lauf, der Geld ausgibt, braucht eine Bremse vor dem Geld.** Der Harness hat eine
+   Ausgabengrenze (`--max-usd`, Standard 1,00), eine Stichprobenverkleinerung (`--objekte`,
+   `--portale`) für eine Rauchprobe von wenigen Cent, und einen `--dry-run`, der den Plan
+   ausgibt (wie viele Aufrufe, welche Grenze) und **keinen einzigen** Modellaufruf macht. Ein Modellfehler beendet nicht den
+   ganzen Lauf: was bereits gemessen wurde, ist bezahlt und gehört in den Bericht.
+5. **Schicht B weigert sich im Mock-Modus** — das Spiegelbild der Weigerung in `policy.js`.
+   Dort: „kein echtes Modell". Hier: „kein Mock". Im Mock baut `listingWriter` seinen Text aus
+   dem Datensatz; der Vertrag wäre per Konstruktion erfüllt und die 100 % wären eine Aussage
+   über den eigenen Fixture-Generator.
+
+**Konsequenz.** Die erwartete Zahl ist **rot**, und das ist beabsichtigt: der heutige
+Writer-Prompt nennt die Vertragsregeln, aber niemand hat je geprüft, ob ein echtes Modell sie
+einhält. Ein Erstversuchs-Wert unter 100 % ist kein Rückschlag, sondern der erste echte
+Messwert — die Baseline aus `EVALS.md` §5 sagt genau das voraus. Der Preis der Entscheidung:
+T8 wird schwerer zu erfüllen als bei der bequemen Zählweise, und die Prompt-Arbeit am Writer
+wird damit zu einer eigenen, messbaren Aufgabe statt zu einer Behauptung.
+
+**Was hier NICHT entschieden ist.** Der Judge der Schicht B (`EVALS.md` §3.9–3.11) bleibt in
+Phase 4 (ADR-0024). T8 braucht ihn nicht: der Vertrag dieser Domäne ist Arithmetik, kein
+Urteil — dieselbe Eigenschaft, die schon den Berichtsvertrag aus §1.1 messbar machte.
+
+**Stand.** Der Harness steht und ist bis an die Modellgrenze geprüft (Verweigerung im Mock,
+Trockenlauf, Verdrahtung gegen einen absichtlich ungültigen Schlüssel, Exit-Codes). **Die
+Messung selbst fehlt: in dieser Umgebung ist kein `ANTHROPIC_API_KEY` gesetzt.** T8 bleibt
+damit offen — nicht weil etwas fehlt, sondern weil die Zahl noch niemand erzeugt hat.

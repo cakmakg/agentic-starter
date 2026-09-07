@@ -26,8 +26,8 @@ stehen: der dokumentierte Übergang ist der eigentliche Nachweis, nicht der Endz
 | `npm run demo` läuft durch | ❌ `GraphRecursionError` | ✅ Exit 0, Endstatus `PUBLISHED` |
 | Ablehnung stoppt die Veröffentlichung | ❌ wurde trotzdem veröffentlicht | ✅ Artefakt bleibt `AWAITING_APPROVAL`, Queue leer |
 | Ungültiger API-Key wird abgelehnt | ❌ wurde bereinigt und akzeptiert | ✅ 401, laufzeitkonstanter Vergleich |
-| `npm test` | ❌ keine Testinfrastruktur | ✅ 93 grün, **kein `todo` mehr**, 95,64 % Zeilenabdeckung in `src/` (2026-09-06) |
-| `npm run evals` erzeugt Baseline | ❌ kein Harness | ✅ 20 Aufgaben, Approval-Enforcement 100 %, Unauthorized-Action 0 % |
+| `npm test` | ❌ keine Testinfrastruktur | ✅ 120 grün, **kein `todo` mehr**, 93,27 % Zeilenabdeckung in `src/` (2026-09-06) |
+| `npm run evals` erzeugt Baseline | ❌ kein Harness | ✅ 43 Aufgaben in zwei Domänen, Approval-Enforcement 100 %, Unauthorized-Action 0 % |
 | Eine einzelne Injection wird blockiert | ❌ Schwelle 8 = Summe aller Gewichte, unerreichbar | ✅ Schwelle 3; Guardrail-Trefferquote auf einem Nenner von 3 statt 1 |
 | Ein Neustart verliert keine wartende Genehmigung | ❌ alles im Arbeitsspeicher | ✅ zwei echte Prozesse im Test: der zweite genehmigt, was der erste hinterließ (T11) |
 
@@ -175,10 +175,10 @@ Vollständiger Zielbaum mit Begründung der Naht: [`ARCHITECTURE.md`](ARCHITECTU
 | `.gehirn/` | Projektgedächtnis über Sitzungen hinweg (Kern, Regeln, offene Themen) |
 | `.claude/hooks/` | `SessionStart`-Hook, der das Gedächtnis in den Kontext injiziert |
 | `.claude/skills/projekt-doktor/` | Gesundheitscheck: 14 Prüfungen, vier davon Phasen-Gates |
-| [`ARCHITECTURE.md`](ARCHITECTURE.md) · [`DECISIONS.md`](DECISIONS.md) | Trade-offs und bekannte Grenzen · 27 festgehaltene Entscheidungen |
+| [`ARCHITECTURE.md`](ARCHITECTURE.md) · [`DECISIONS.md`](DECISIONS.md) | Trade-offs und bekannte Grenzen · 28 festgehaltene Entscheidungen |
 | [`EVALS.md`](EVALS.md) | Evaluationsrahmen: zwei Schichten, Metriken mit Zähler und Nenner, Baseline |
 | `docs/` | Ablauf, Sicherheitsmodell, Entwicklungsprozess |
-| `tests/` | `node:test`, 14 Dateien · 93 Tests, keine zusätzliche Abhängigkeit (`npm test`) |
+| `tests/` | `node:test`, 15 Dateien · 120 Tests, keine zusätzliche Abhängigkeit (`npm test`) |
 | `evals/` | Schicht-A-Harness + Baseline-Bericht (`npm run evals`); `traces/` je Lauf |
 
 ---

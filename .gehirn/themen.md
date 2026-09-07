@@ -8,11 +8,11 @@ Wird ein Thema zu einer Entscheidung, wandert es nach `DECISIONS.md` und wird hi
 
 ## Aktive Themen
 
-### Thema: Domäne `immobilien` — gebaut, aber ungemessen
-**Status:** 🔴 **Der größte blinde Fleck des Repos.** Das Skelett läuft (`npm run demo:immobilien` → `DELIVERED`), T10 und T11 sind grün — aber `tests/` und `evals/` kennen die Domäne nicht: **null** Tests, kein Golden-Datensatz. T8 ist damit eine Demo-Ausgabe, keine Messung. Nächste Arbeit. Vertrag unverändert: jede Zahl buchstabengleich aus einem Feld, nichts Konkretes ohne Feld. Offen außerdem: echter Executor, Genehmigungsbildschirm, T12.
+### Thema: Domäne `immobilien` — Schritt 4, Harness steht, Zahl fehlt
+**Status:** 🟡 Schritte 1–3 erledigt (Tests · Vertrag/ADR-0028 · domänenfreier Harness/ADR-0029). **Schritt 4 zur Hälfte:** der Schicht-B-Harness `evals/runners/quality.js` steht und ist bis an die Modellgrenze geprüft — Verweigerung im Mock, `--dry-run`, Verdrahtungsprobe gegen einen ungültigen Schlüssel, Exit-Codes. **ADR-0030:** T8 misst den **ersten Versuch**, nicht das Ergebnis der Revisionsschleife; gemessen wird das Paar Writer/Tor, gegen die zehn Kundendatensätze. **Blockiert:** kein `ANTHROPIC_API_KEY` in dieser Umgebung, also gibt es die Zahl noch nicht. Aufruf danach: `npm run evals:quality -- --objekte 1` (Rauchprobe, wenige Cent), dann ohne Schalter (~0,30–0,60 USD). Danach echter Executor, Genehmigungsbildschirm, T12.
 
-### Thema: Zwei Sitzungen Arbeit liegen uncommittet
-**Status:** 🟡 Guardrail-Schwelle, ADR-0026/0027, Persistenz und die Drift-Bereinigung stehen im Arbeitsverzeichnis, nicht in der Historie. Die CI (P2 grün) hat davon nichts gesehen — ihr grüner Lauf gehört zu `17ecdfe`. Commit und Push sind eine ausdrückliche Entscheidung der Nutzerin oder des Nutzers, deshalb wartet es hier.
+### Thema: Drei Sitzungen Arbeit liegen uncommittet
+**Status:** 🔴 Wächst weiter. Guardrail-Schwelle, ADR-0026/0027, Persistenz, die Drift-Bereinigung, die Testinfrastruktur der Domäne, ADR-0028 und jetzt die Harness-Parametrisierung (ADR-0029) stehen im Arbeitsverzeichnis, nicht in der Historie. Die CI (P2 grün) hat von alledem nichts gesehen — ihr grüner Lauf gehört zu `17ecdfe`. Commit und Push sind eine ausdrückliche Entscheidung der Nutzerin oder des Nutzers, deshalb wartet es hier.
 
 ### Thema: MCP-Adapter — Server in Phase 4
 **Status:** 🟡 ADR-0022: `run_workflow`, `get_status`, `list_queue` — **kein** `approve`. `@modelcontextprotocol/sdk` vorab freigegeben. Client wandert nach Phase 6 (ADR-0024).

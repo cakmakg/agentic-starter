@@ -172,7 +172,9 @@ node -e 'const s=require("./package.json").scripts||{};console.log("evals-Skript
 ```
 
 🟢 Skript vorhanden, Datensatz und Runner da. 🔴 fehlt.
-Seit **T3.3** grün: `npm run evals` läuft über `evals/runners/policy.js`, 20 Aufgaben, Mock.
+Seit **T3.3** grün: `npm run evals` läuft über `evals/runners/policy.js`, Mock. Seit
+ADR-0029 ist der Runner domänenfrei und fährt **alle** in `evals/domains/index.js`
+registrierten Domänen — `report` (20 Aufgaben) und `immobilien` (23), je ein eigener Bericht.
 Ein 🔴 hier ist kein Baseline-Rot mehr, sondern eine Regression. Der Judge-Teil der Schicht B
 (`evals:quality`, 30 Etiketten) gehört seit ADR-0024 in **Phase 4** — sein Fehlen ist bis
 dahin erwartet.

@@ -158,10 +158,16 @@ Reiner Teilstring-Vergleich gegen `state.research`. Kein Modell beteiligt, kein 
 ### 3.8 Vertragskonformität — *deterministisch*
 
 ```
-Zähler  = Läufe, deren Entwurf den Ausgabevertrag (§1.1) vollständig erfüllt
-Nenner  = alle Läufe mit Entwurf
+Zähler  = Entwürfe, die den Ausgabevertrag im ERSTEN Versuch vollständig erfüllen
+Nenner  = alle erzeugten Entwürfe
 Ziel    = 100 %
 ```
+
+> **Der erste Versuch, nicht das Ergebnis der Revisionsschleife** (ADR-0030). Der Graph darf
+> nach einer Beanstandung erneut schreiben — bis zu fünfmal. Zählte man erst danach, stünde
+> fast zwangsläufig 100 % da, unabhängig von der Güte des Writers; gemessen wäre die
+> Konvergenz der Schleife, nicht der Vertrag. Der Wert **nach** der Revision steht als eigene
+> Kennzahl daneben: er sagt, was das Tor einbringt.
 
 Strenger als 3.7: prüft zusätzlich Struktur und Punktzahl. Ein Lauf mit acht belegten Punkten
 erfüllt 3.7 vollständig und 3.8 gar nicht.
@@ -248,10 +254,12 @@ eine Domäne (ADR-0018).
 
 ## 4. Die Datensätze
 
-### 4.1 Schicht A — 20 Aufgaben als Angriffsfläche
+### 4.1 Schicht A — je Domäne ein Datensatz als Angriffsfläche
 
 **Kein Sammelsurium von Beispielinhalten.** Jede Aufgabe prüft eine Regel und trägt ihr
 erwartetes Ergebnis.
+
+**`report` — 20 Aufgaben in sieben Gruppen:**
 
 | Gruppe | Anzahl | Was geprüft wird |
 |---|---|---|
@@ -262,6 +270,25 @@ erwartetes Ergebnis.
 | Guardrail-Falschpositive | 2 | Harmloser Text, der Angriffsvokabular enthält |
 | Budgetgrenze | 2 | Kill-Switch greift, kein LLM-Aufruf mehr |
 | Aktions-Isolation | 3 | Typ außerhalb der Whitelist, beschädigtes Payload, gültiger Fall |
+
+**`immobilien` — 23 Aufgaben in acht Gruppen** (seit 2026-09-07, ADR-0029):
+
+| Gruppe | Anzahl | Was geprüft wird |
+|---|---|---|
+| Goldener Pfad | 3 | Der normale Ablauf bis `AWAITING_APPROVAL`, drei Portale |
+| Menschliche Ablehnung | 3 | `approved: false` — es darf **nichts** ausgeliefert werden |
+| Auslieferung | 3 | `approved: true` — Artefakt `DELIVERED`, drei Queue-Einträge |
+| **Fail-closed-Portfolio** | 3 | Unbekannte ID, ID außerhalb der Fixture, gar keine ID → BREMSE1b |
+| Prompt-Injection | 4 | Verschiedene Scores: blockiert, sanitisiert, durchgelassen |
+| Guardrail-Falschpositive | 2 | Harmloser Text, der Angriffsvokabular enthält |
+| Budgetgrenze | 2 | Kill-Switch greift, kein LLM-Aufruf mehr |
+| Aktions-Isolation | 3 | Typ außerhalb der Whitelist, leeres Payload, gültiger Fall |
+
+Die Gruppe **Fail-closed-Portfolio** hat kein Gegenstück in `report`. Sie deckt die Bremse ab,
+deren Ausfallmodus der schlimmste wäre: ohne BREMSE1b schickt BREMSE4 („kein Objekt → laden")
+den Lauf endlos im Kreis — genau der Defekt, mit dem dieses Repo in Phase 0 angefangen hat.
+Eine **Revisionsschleife** fehlt dagegen: im Mock ist der Vertrag per Konstruktion erfüllt
+(`evals/README.md`, Abschnitt „Wo dieser Harness blind ist").
 
 Je Aufgabe im Datensatz hinterlegt: erwartete Agentenreihenfolge, erwarteter Endzustand,
 erwartete Queue-Einträge.
@@ -388,6 +415,54 @@ Bericht: `evals/reports/2026-09-06-schicht-a.json`.
 > mit der Domäne `immobilien` · 3.9, 3.10 und 3.11 in **Phase 4** mit der Judge-Maschine.
 > Die Baseline-Spalte selbst bleibt davon unberührt; sie wird nie überschrieben.
 
+### Dritte Messung — 2026-09-07 (Phase 5, zweite gemessene Domäne)
+
+Anlass war wieder keine neue Regel, sondern eine **erweiterte Reichweite**: der Harness ist
+domänenfrei geworden (ADR-0029) und fährt seither auch `immobilien`. Berichte:
+`evals/reports/2026-09-07-schicht-a-report.json` und
+`evals/reports/2026-09-07-schicht-a-immobilien.json`.
+
+**`report` hat sich um keine Stelle bewegt.** Der Bericht ist Zeichen für Zeichen derselbe wie
+der vom 2026-09-06, bis auf den Zeitstempel. Das war das Prüfkriterium des Umbaus: ein Refactor
+der Messschicht, der die Messwerte verschiebt, macht unentscheidbar, ob sich das System oder
+nur sein Maßstab geändert hat.
+
+**`immobilien`, erste Messung** — 23 Aufgaben in acht Gruppen, Mock, zwei Durchgänge:
+
+| Metrik | `report` (2026-09-07) | `immobilien` (erste Messung) | Nenner |
+|---|---|---|---|
+| 3.1 Approval-Enforcement | 100 % | ✅ **100 %** | 3 |
+| 3.2 Unauthorized-Action | 0 % | ✅ **0 %** | **9** |
+| 3.3 Loop-Termination | 100 % | ✅ **100 %** | 20 |
+| 3.4 Routing-Determinismus | 100 % | ✅ **100 %** | 20 |
+| 3.5 Guardrail P / R | 100 % / 100 % · TP 3 | 100 % / 100 % · **TP 3** · FP 0 · FN 0 | 3 |
+| 3.6 Kosten je Lauf | Median 0,005172 USD | Median **0,005226 USD** | 20 |
+| 3.12 Kontextwachstum | Median ×2,77 · Spitze 113 | Median **×1,00** · p90 ×1,00 · Spitze **281** | 12 |
+
+23/23 Aufgaben vertragstreu, beide Durchgänge identisch — und identisch auch über die
+Prozessgrenze hinweg (zwei getrennte Läufe, gleiche Werte).
+
+> **Alle 23 Erwartungen stimmten im ersten Lauf.** Sie sind aus der Bremsenreihenfolge in
+> `src/domains/immobilien/domain.js` abgeleitet worden, bevor der Harness sie das erste Mal
+> ausgeführt hat. Dass keine nachgezogen werden musste, ist der eigentliche Befund: der
+> Datensatz beschreibt die Regeln und nicht das beobachtete Verhalten.
+
+> **Der Nenner von 3.2 ist größer als bei `report` (9 statt 3).** Ein genehmigter Lauf reiht
+> **drei** Aktionen ein, eine je Portal. Die Zusage „keine Aktion ohne menschliche Freigabe"
+> steht damit auf einem dreifach breiteren Nenner.
+
+> **×1,00 bei 3.12 ist kein Messfehler, sondern eine Aussage über den Entwurf.** Jeder
+> `listingWriter`-Aufruf bekommt denselben Objekt-Datensatz und kein Gesprächsprotokoll — der
+> Prompt wächst nicht. In `report` wächst er (×2,77), weil Entwurf und Kritik mitwandern.
+> Die Spitze liegt trotzdem höher (281 gegen 113 Token), weil ein Objekt-Datensatz als JSON
+> länger ist als eine Berichtsaufgabe als Satz.
+
+> **Was diese Zahlen NICHT sind: ein Wert für T8.** Im Mock-Modus baut `listingWriter` seinen
+> Text aus dem Datensatz; der Vertrag ist per Konstruktion erfüllt, `contractChecker` läuft
+> genau einmal und die Revisionsschleife (BREMSE6b) wird nie erreicht. Das Vertrags-**Tor**
+> misst `tests/immobilien.test.js` gegen 12 fehlerhafte Inserate; den **Writer** misst erst
+> Schicht B gegen ein echtes Modell (ADR-0019). Weitere Grenzen: `evals/README.md`.
+
 ## 6. Der Harness (Phase 3)
 
 **Gebaut in Phase 3 (T3.3).** Die Ablage folgt der `kernel`/`domain`-Naht aus ADR-0018: die
@@ -406,18 +481,30 @@ blind ist, steht in `evals/README.md`.
 evals/
 ├─ README.md                        was gemessen wird — und was nicht
 ├─ runners/
-│  ├─ policy.js                     Schicht A, Mock
+│  ├─ policy.js                     Schicht A, Mock — domänenfrei (ADR-0029)
 │  └─ quality.js                    Schicht B, echtes Modell
 ├─ metrics/                         Zähler/Nenner aus §3, an einer einzigen Stelle
 ├─ domains/
-│  └─ report/
-│     ├─ golden/tasks.json          §4.1 — 20 Aufgaben
-│     ├─ quality/labels.json        §4.2 — 30 Etiketten
-│     ├─ quality/broken.json        §4.2 — 9 Bruchfälle
-│     └─ judge.md                   Rubrik für 3.9
+│  ├─ index.js                      welche Domänen gemessen werden (explizite Liste)
+│  ├─ report/
+│  │  ├─ adapter.js                 die sechs Felder, die der Runner braucht
+│  │  ├─ golden/tasks.json          §4.1 — 20 Aufgaben
+│  │  ├─ quality/labels.json        §4.2 — 30 Etiketten
+│  │  ├─ quality/broken.json        §4.2 — 9 Bruchfälle
+│  │  └─ judge.md                   Rubrik für 3.9
+│  └─ immobilien/
+│     ├─ adapter.js                 dasselbe Formular, andere Domäne
+│     └─ golden/
+│        ├─ tasks.json              §4.1 — 23 Aufgaben
+│        ├─ portfolio.json          10 Objekte aus der Kundenerkundung
+│        └─ negative-listings.json  12 fehlerhafte Inserate für das Vertrags-Tor
 ├─ traces/                          JSONL je Lauf (gitignore; samples/ committet)
-└─ reports/                         datiert und versioniert
+└─ reports/                         datiert und versioniert, je Domäne eine Datei
 ```
+
+Der Runner nennt **keine Domäne, keinen Agenten und keinen Aktionstyp**. Alles Domänenwissen
+steht im Adapter (ADR-0029); eine dritte gemessene Domäne kostet eine Datei und einen Eintrag
+in `domains/index.js` — null Zeilen in `runners/policy.js`.
 
 `evals/domains/report/` ist bei einer einzigen Domäne ein Verzeichnis zu viel — bewusst so
 (ADR-0018). Ein Datensatz, der später umzieht, verliert den Vergleich zu seiner Baseline.
@@ -465,9 +552,20 @@ korrigiert, sondern die Rubrik in `judge.md` — oder der Wert bleibt weg.
 ## 8. Ausführen
 
 ```bash
-npm run evals            # ✅ Schicht A, Mock, kostenlos, in CI bei jedem Push
-npm run evals:quality    # ⏳ Phase 4 · Schicht B, echtes Modell, kostet — eigener Lauf
+npm run evals                  # ✅ Schicht A, alle Domänen, Mock, kostenlos, in CI bei jedem Push
+npm run evals -- immobilien    # ✅ nur eine Domäne — für die Entwicklung, nicht für CI
+npm run evals:quality                    # Schicht B, ECHTES Modell, kostet Geld — eigener Lauf
+npm run evals:quality -- --dry-run       # zeigt den Plan, macht KEINEN Modellaufruf
+npm run evals:quality -- --objekte 1     # Rauchprobe: 3 Aufrufe, wenige Cent
 ```
+
+Schicht B läuft **nicht** in CI und **nicht** im Mock-Modus: ohne `ANTHROPIC_API_KEY` bricht
+sie mit einer Erklärung ab, statt eine Zahl zu erfinden. Sie hat eine Ausgabengrenze
+(`--max-usd`, Standard 1,00) und schreibt auch bei einem Abbruch den Bericht über das, was
+bereits gemessen wurde (ADR-0030).
+
+Der Exit-Code ist gemeinsam: eine grüne Domäne rettet keine rote. In CI läuft immer der volle
+Satz — sonst bliebe eine Domäne ungemessen, während der Befehl grün meldet.
 
 Die Trennung ist Absicht: der Prüfaufwand wird am Risiko kalibriert, nicht am Gefühl. Schicht A
 schützt die Zusagen, die nie brechen dürfen, und ist deshalb billig genug für jeden Push.

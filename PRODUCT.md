@@ -98,12 +98,12 @@ Jedes Kriterium muss **ausführbar** sein. „Die Datei existiert" ist kein Krit
 |---|---|---|---|---|
 | T1 | `npm run demo` läuft im Mock-Modus durch | Exit-Code `0`, Endstatus des Artefakts `PUBLISHED` | ❌ **FEHLGESCHLAGEN** — `GraphRecursionError` | ✅ **grün** (T2.2) — Exit 0, Endstatus `PUBLISHED` |
 | T2 | Eine Ablehnung stoppt die Veröffentlichung | Nach `approved:false` ist das Artefakt **nicht** `PUBLISHED` und die Queue leer | ❌ **FEHLGESCHLAGEN** — wird veröffentlicht | ✅ **grün** (T2.3) — Artefakt bleibt `AWAITING_APPROVAL`, Queue leer |
-| T3 | `npm test` grün, Zeilenabdeckung in `src/` ≥ 80 % | Ausgabe des Test-Runners | ❌ keine Testinfrastruktur | ✅ **grün** — **93 Tests**, 0 Fehler, **0 todo**; **95,64 %** Zeilenabdeckung (gemessen 2026-09-06; siehe Hinweis unten) |
-| T4 | `npm run evals` erzeugt einen Baseline-Bericht | Datierte Berichtsdatei | ❌ kein Harness | ✅ **grün** (T3.3) — `evals/reports/2026-09-03-schicht-a.json`, 20 Aufgaben, zwei Durchgänge identisch |
+| T3 | `npm test` grün, Zeilenabdeckung in `src/` ≥ 80 % | Ausgabe des Test-Runners | ❌ keine Testinfrastruktur | ✅ **grün** — **120 Tests**, 0 Fehler, **0 todo**; **93,27 %** Zeilenabdeckung (gemessen 2026-09-06; siehe Hinweis unten) |
+| T4 | `npm run evals` erzeugt einen Baseline-Bericht | Datierte Berichtsdatei | ❌ kein Harness | ✅ **grün** (T3.3) — `evals/reports/2026-09-03-schicht-a.json`, 20 Aufgaben, zwei Durchgänge identisch. **Seit 2026-09-07 (ADR-0029) je Domäne ein Bericht:** `report` 20 Aufgaben, `immobilien` 23 — der Bericht von `report` ist dabei zeichengleich geblieben |
 | T5 | Approval-Enforcement-Rate = 100 % | Evaluationsmetrik (Definition: `EVALS.md` §3) | ❌ derzeit 0 % | ✅ **grün** — **100 %** (3/3) im ersten Harness-Lauf |
 | T6 | Unauthorized-Action-Rate = 0 % | Evaluationsmetrik (Definition: `EVALS.md` §3) | ❌ verletzt | ✅ **grün** — **0 %** (0/3 eingereihte Aktionen ohne Freigabe) |
 | T7 | Auf einer frischen Maschine läuft `clone → install → demo` im ersten Anlauf | Manuell oder in CI | ❌ **wegen T1** — die Installation selbst ist grün (Korrektur unten) | ✅ **grün** — frisches Verzeichnis, `npm ci` → `npm run demo` → `PUBLISHED` |
-| T8 | Vertragskonformität = 100 % | Evaluationsmetrik Schicht B (Definition: `EVALS.md` §3.8) | ❌ **0 %** (erwartet) — der Writer-Prompt fordert keinen Beleg | ❌ offen — **Phase 5**, Eigentümer jetzt `immobilien` statt `report` (ADR-0024) |
+| T8 | Vertragskonformität = 100 % | Evaluationsmetrik Schicht B (Definition: `EVALS.md` §3.8) | ❌ **0 %** (erwartet) — der Writer-Prompt fordert keinen Beleg | 🟡 **Harness steht, Zahl fehlt (2026-09-07)** — `npm run evals:quality` misst die Konformität im **ersten Versuch** (ADR-0030), 10 Objekte × 3 Portale gegen ein echtes Modell. Geprüft bis an die Modellgrenze: Verweigerung im Mock, Trockenlauf, Verdrahtung, Exit-Codes. **Der Messwert selbst ist offen — in dieser Umgebung ist kein `ANTHROPIC_API_KEY` gesetzt** |
 | T9 | `sanitizeApiKey` lehnt ungültige Schlüssel ab, statt sie zu bereinigen | Ein Schlüssel mit ungültigen Zeichen ergibt 401 | ❌ **verletzt** — `d!e!v!-!l!o!c!a!l!-!k!e!y` wird akzeptiert | ✅ **grün** (T2.4) — 401 bei ungültigem Format, laufzeitkonstanter Vergleich |
 | T10 | Der Kern bleibt domänenfrei | `git diff --stat`: beim Aufnehmen der Domäne geänderte Zeilen unter `src/kernel/`. Ziel **0**. Ein Registry-Eintrag zählt nicht mit, das ist Konfiguration | — keine Baseline, neu mit ADR-0024 | ✅ **grün (2026-09-03)** — zweite Domäne `immobilien` als Geschwisterdatei zu `domains/report/` aufgenommen, **0 Zeilen** unter `src/kernel/` geändert. `git diff --stat` ist dafür (noch) kein Beleg: `src/kernel/` ist selbst nie committet worden; verifiziert stattdessen über die vollständige Liste geänderter Pfade dieser Sitzung (nur `domains/immobilien/**`, `bin/demoImmobilien.js`, `package.json`) |
 | T11 | Persistenz: ein Neustart verliert keine wartende Genehmigung | Bei einem Lauf im Zustand `AWAITING_APPROVAL` wird der Prozess neu gestartet; `POST /api/approve` wirkt weiterhin, das Artefakt wird `PUBLISHED` | — keine Baseline, neu mit ADR-0024 | ✅ **grün (2026-09-06)** — `tests/integration/persistence.test.js` startet **zwei echte Kindprozesse** und vergleicht ihre PIDs: der zweite findet das wartende Artefakt vor der Genehmigung und bringt es auf `PUBLISHED`. Eine Ablehnung nach dem Neustart lässt es `AWAITING_APPROVAL` und die Queue leer (ADR-0027) |
@@ -128,7 +128,7 @@ Jedes Kriterium muss **ausführbar** sein. „Die Datei existiert" ist kein Krit
 > verschwände genau der Nachweis, den dieses Projekt erbringen will. Fortschritt steht in
 > der Spalte **Stand**, jeweils mit der Aufgabe, die ihn erzeugt hat.
 
-> **Was die 95,64 % nicht enthalten.** Der Test-Runner instrumentiert nur Dateien, die
+> **Was die 93,27 % nicht enthalten.** Der Test-Runner instrumentiert nur Dateien, die
 > auch geladen werden. `src/adapters/http/server.js` (Express-Server) und die Skripte unter
 > `src/bin/` (mit `process.exit`) importiert kein Test — sie tauchen deshalb **gar nicht im
 > Nenner auf**, nicht erst durch das `--test-coverage-exclude` im Skript. Die Ausschlüsse
@@ -137,6 +137,12 @@ Jedes Kriterium muss **ausführbar** sein. „Die Datei existiert" ist kein Krit
 > jetzt nachgezogen. Die Auth-Logik aus dem Server ist über `auth.js` direkt abgedeckt; der
 > Ablauf aus `demo.js` über `tests/workflow.test.js`. Ungeprüft bleibt die
 > HTTP-Verdrahtung selbst.
+>
+> **Warum die Zahl mit mehr Tests gefallen ist** (95,64 % → 93,27 %): der neue Ablauf-Test
+> der Domäne `immobilien` lädt deren Graphen und zieht damit Dateien in den **Nenner**, die
+> vorher gar nicht gemessen wurden. Mehr Code unter Beobachtung bei gleichem Testumfang
+> senkt den Durchschnitt — die Zahl ist gesunken, die Abdeckung gewachsen. Genau deshalb
+> steht hier neben der Prozentzahl immer, was sie enthält.
 
 > **T10–T13 tragen keine Baseline aus Phase 0.** Sie entstanden mit ADR-0024 und messen
 > Dinge, die es damals nicht gab; eine leere Baseline-Spalte ist hier ehrlicher als eine
@@ -152,7 +158,7 @@ Jedes Kriterium muss **ausführbar** sein. „Die Datei existiert" ist kein Krit
 | D1 | `PRODUCT.md` — Umfang, Nicht-Ziele, messbare Kriterien | ✅ diese Datei |
 | D2 | `ARCHITECTURE.md` — Architekturentscheidungen und Trade-offs | ✅ inkl. bekannter Grenzen |
 | D3 | `EVALS.md` — Rahmen, Metrikdefinitionen, Baseline | ✅ Metriken mit Zähler und Nenner |
-| D4 | `DECISIONS.md` — mindestens 10 festgehaltene Architekturentscheidungen | ✅ 27 ADRs |
+| D4 | `DECISIONS.md` — mindestens 10 festgehaltene Architekturentscheidungen | ✅ 30 ADRs |
 | D5 | `docs/` — Workflow, Sicherheitsmodell, Entwicklungsprozess | ✅ alle drei |
 | D6 | `README.md` — im Case-Study-Format | ⏳ Phase 4 |
 
@@ -177,7 +183,7 @@ Die Tabelle steht in Ausführungsreihenfolge, nicht in Zahlenfolge.
 | **1 · Vertrag** | Produkt- und Architekturvertrag | ✅ Abgeschlossen — Gerüst + 7 Dokumente, D1–D5 grün |
 | **2 · Stabilisieren** | Goldener Pfad + minimaler Trace · Kundenerkundung · Zeit-Baseline des manuellen Prozesses | ✅ **Abgeschlossen** — T1, T2, T7, T9 grün; Trace grün (T2.5 — jeder Lauf hinterlässt `evals/traces/<run_id>.jsonl`); Kundenerkundung und Hand-Baseline schriftlich in `docs/kundenerkundung-immobilien.md` |
 | **3 · Messen** | Tests, Evaluations-Baseline (Schicht A), Kontextmessung, minimales CI, Umzug in die Zielstruktur | ✅ **Vollständig abgeschlossen (2026-09-06)** — T3, T4, T5, T6 grün; Umzug erfolgt, dieselben Tests vor und nach ihm mit demselben Ergebnis; **P2 grün**, die CI ist gelaufen |
-| **5 · Produkt** | Domäne `immobilien`, Persistenz mit `tenantId`, echter Executor, schlanker Genehmigungsbildschirm | 🟡 **Läuft (Stand 2026-09-06)** — Skelett `portfolioLoader → listingWriter ⇄ contractChecker → listingStore → human_approval → delivery`, **T10 grün** (0 Zeilen unter `src/kernel/`), **T11 grün** (Persistenz mit `tenantId`, ADR-0027). Offen: T8 harness-gemessen statt nur im Demo gezeigt — die Domäne hat bis heute **keinen** Test und keinen Golden-Datensatz —, T12 (echter Lauf mit echtem Datensatz), echter Executor, Genehmigungsbildschirm |
+| **5 · Produkt** | Domäne `immobilien`, Persistenz mit `tenantId`, echter Executor, schlanker Genehmigungsbildschirm | 🟡 **Läuft (Stand 2026-09-07)** — Skelett `portfolioLoader → listingWriter ⇄ contractChecker → listingStore → human_approval → delivery`, **T10 grün** (0 Zeilen unter `src/kernel/`), **T11 grün** (Persistenz mit `tenantId`, ADR-0027). Die Domäne hat seit 2026-09-06 **27 Tests** und zwei Golden-Datensätze (10 Objekte, 12 fehlerhafte Inserate); ihr Ausgabevertrag steht als **ADR-0028**. Seit 2026-09-07 wird sie auch **gemessen**: der Harness ist domänenfrei (ADR-0029), `npm run evals` fährt 23 eigene Aufgaben, 23/23 vertragstreu, beide Durchgänge identisch — und der Bericht von `report` blieb dabei zeichengleich. Offen: **die T8-Zahl** — der Schicht-B-Harness steht seit 2026-09-07 (ADR-0030) und misst den ersten Versuch gegen die zehn Kundendatensätze; ausgeführt wurde er noch nicht, weil hier kein `ANTHROPIC_API_KEY` gesetzt ist. Im Mock ist T8 per Konstruktion erfüllt und damit kein Messwert. Ebenso offen: T12 (echter Lauf mit echtem Datensatz), echter Executor, Genehmigungsbildschirm |
 | **4 · Veröffentlichen** | Schicht B vollständig, CI, Lizenz, Fallstudie mit echten Zahlen, MCP-Server | P1–P5 grün; HTTP und MCP verbrauchen denselben Kern |
 | **6 · Skalieren** | Mehrmandantenfähigkeit, zweite Domäne, Kontextstrategie, Konnektoren, MCP-Client | **Auslöser: ein zweiter Kunde oder eine zweite Vertikale.** Ohne ihn beginnt diese Phase nicht — spekulative Infrastruktur wird nicht geschrieben |
 
@@ -194,8 +200,8 @@ den Stand, nicht die Absicht: „belegt" steht nur dort, wo ein ausführbarer Na
 
 | Achse | Stand |
 |---|---|
-| **01 · KI-Anwendungen bauen und ausliefern** | Agentische Systeme ✅ Graph, HITL, Aktions-Isolation, Guardrail (Blockierschwelle seit Phase 5 erreichbar) · Evaluationsgetriebene Entwicklung 🟡 **Schicht A misst und läuft in CI** (20 Aufgaben, zwei identische Durchgänge); Schicht B — Ausgabevertrag und Judge — offen, Phase 4 · Produktionsbetrieb 🟡 Rate-Limit, Auth, Budget-Schalter, **Trace je Lauf** (T2.5); keine externe Observability-Anbindung · Grounding und ML-Grundlagen ❌ außerhalb des Umfangs |
-| **02 · Grundlagen des Software-Engineering** | Trade-offs ✅ 27 ADRs · Tests ✅ **93 Tests, 95,64 % Zeilenabdeckung** (2026-09-06) · Kontext- und Kostenarchitektur 🟡 Kosten je Lauf und Kontextwachstum werden **gemessen** (3.6 · 3.12), eine Kontextstrategie gibt es nicht (`ARCHITECTURE.md` §4) |
+| **01 · KI-Anwendungen bauen und ausliefern** | Agentische Systeme ✅ Graph, HITL, Aktions-Isolation, Guardrail (Blockierschwelle seit Phase 5 erreichbar) · Evaluationsgetriebene Entwicklung 🟡 **Schicht A misst beide Domänen und läuft in CI** (20 + 23 Aufgaben, je zwei identische Durchgänge; ADR-0029); Schicht B — der **Ausgabevertrag** hat seit 2026-09-07 einen lauffähigen Harness (ADR-0030), es fehlt der Lauf gegen ein echtes Modell; der **Judge** bleibt Phase 4 · Produktionsbetrieb 🟡 Rate-Limit, Auth, Budget-Schalter, **Trace je Lauf** (T2.5); keine externe Observability-Anbindung · Grounding und ML-Grundlagen ❌ außerhalb des Umfangs |
+| **02 · Grundlagen des Software-Engineering** | Trade-offs ✅ 30 ADRs · Tests ✅ **120 Tests, 93,27 % Zeilenabdeckung** (2026-09-06) · Kontext- und Kostenarchitektur 🟡 Kosten je Lauf und Kontextwachstum werden **gemessen** (3.6 · 3.12), eine Kontextstrategie gibt es nicht (`ARCHITECTURE.md` §4) |
 | **03 · Coding-Agenten einsetzen** | Aufgabenvorlage ✅ `docs/development-process.md` · Der Nachweis entsteht erst nach der Messschicht, in Phase 4 — vorher misst niemand, wo der Agent bricht |
 | **04 · Den Build formen** | Umfang, Nicht-Ziele, messbare Kriterien ✅ dieses Dokument · Echter Geschäftskontext 🟡 die Domäne `immobilien` steht als Skelett (T10 grün, 0 Zeilen im Kern); echt wird sie erst mit T12 — einem Lauf auf echten Portfolio-Daten, von einer Beraterin oder einem Berater genehmigt |
 
