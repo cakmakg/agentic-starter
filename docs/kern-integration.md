@@ -55,7 +55,7 @@ durchläuft; daneben stehen der Commit und der Befehl.
 | M3 | Ungültige Argumente (unbekanntes Portal, leerer Text, Mehrbyte-Text über 16 KiB) → Kern `rejected` → Queue `REJECTED`, kein Eintrag im Portal | geplant | — |
 | M4 | Kern nicht erreichbar → `failed` → Queue `FAILED`, keine automatische Wiederholung, kein Eintrag im Portal; Absturz während des Aufrufs → beim Abspielen `FAILED` | geplant | — |
 | M5 | Portalschlüssel nicht im Code und nicht in der Umgebung von agentic-starter (geplanter Strukturtest, Teil 4); nicht lesbar und das Portal nicht erreichbar für den Benutzer von agentic-starter (geplanter WSL2-Lauf, Teil 5) | geplant | — |
-| M6 | Benutzter Kern ist `157bdad…` und unverändert (geplanter Test, Teil 2) | geplant | — |
+| M6 | Benutzter Kern ist `157bdad…` und unverändert (Test, Teil 2) | erledigt (2026-10-25) | `e19a77c` · `node --test tests/kernPin.test.js` 5/5; Gegenproben: geänderte Datei im Submodul und Checkout von `3d56872` → je genau ein Test rot |
 
 ### 2.2 Teile
 
@@ -65,7 +65,7 @@ Defekt. Nach Teil 1, 3 und 5 ist ein Kontrollpunkt in der Kern-Sitzung (CC-1 –
 | Teil | Inhalt | Geplanter Prüfbefehl | Stand | Nachweis |
 |---|---|---|---|---|
 | 1 | ADR-0031 · dieses Dokument | Freigabe durch die Nutzerin oder den Nutzer | erledigt — beide freigegeben (2026-10-25); Kontrollpunkt der Kern-Sitzung auf Wunsch entfallen | ADR: `e56422f` · dieses Dokument: Commit „docs(kern-integration): …" |
-| 2 | Submodul `vendor/security-core` auf `157bdad…` · `--test-coverage-exclude="vendor/**"` · CI `submodules: true` · `engines.node >= 24` | Test (geplant): HEAD = Hash, `git status --porcelain` leer, `start.ts` exportiert `startSecurityCore`; Gegenprobe: eine Datei im Submodul geändert → rot | geplant | — |
+| 2 | Submodul `vendor/security-core` auf `157bdad…` · `--test-coverage-exclude="vendor/**"` · CI `submodules: true` · `engines.node >= 24` | Test: Gitlink und HEAD = Hash, `git status --porcelain` leer, `start.ts` exportiert `startSecurityCore`; Gegenprobe: eine Datei im Submodul geändert → rot | erledigt (2026-10-25) | `e19a77c` · `npm test` 134/134, Zeilenabdeckung 92,10 % (unverändert, `vendor/` ausgeschlossen) · `npm ci --dry-run` Exit 0 |
 | 3a | Scheinportal: Socket/Named Pipe, nur `Authorization: Bearer <Schlüssel>`, `POST /listings` → `{listingId}`, schlüsselgeschützter Lese-Endpunkt nur für den Operator | eigene Tests (geplant) | geplant | — |
 | 3b | `publish_listing`: Argumente genau `{portal, text}`, bekanntes Portal, 1–5000 Zeichen; `execute` prüft erneut, nur `POST /listings`, erwartet `200`, gibt nur `listingId` zurück, feste Fehlertexte; Schlüssellesen fail-closed mit `ConfigError` | Tests nach CC-6 (geplant): ungültig abgelehnt · genau eine Anfrage, nur an `/listings` · nur `listingId` im Ergebnis · kaputte Portalantwort ohne Leck · Testschlüssel nie in Fehlern, stdout/stderr, Ergebnissen | geplant | — |
 | 4a | TB-1-Client: eine Anfrage je Verbindung, Körper genau `{action, arguments}`, feste Zeitgrenze, wirft nie, strenge Deutung, domänenfrei | Unit-Tests gegen einen Test-Socket (geplant) | geplant | — |
@@ -120,3 +120,4 @@ Nach Teil 4 **läuft das MVP lokal** — das ist noch keine Trennungsaussage.
 |---|---|---|
 | 2026-10-25 | Dokument angelegt aus dem Planungstext (§1, §7, §8), angepasst an ADR-0031 | Der Plan der Integration lebt im Repo, nicht in einem fremden Text |
 | 2026-10-25 | Noch nicht geschriebene Tests und Kriterien als `geplant` markiert, Statuswerte festgelegt | Ein geplanter Test darf nicht wie ein vorhandener aussehen; `erledigt` nur mit Commit und Prüfbefehl |
+| 2026-10-25 | Teil 2 und M6 erledigt | Submodul gepinnt (`e19a77c`); Pin-Test und zwei Gegenproben ausgeführt |
