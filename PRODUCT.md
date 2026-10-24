@@ -193,6 +193,9 @@ Die Tabelle steht in Ausführungsreihenfolge, nicht in Zahlenfolge.
 | **4 · Veröffentlichen** | Schicht B vollständig, CI, Lizenz, Fallstudie mit echten Zahlen, MCP-Server | P1–P5 grün; HTTP und MCP verbrauchen denselben Kern |
 | **6 · Skalieren** | Mehrmandantenfähigkeit, zweite Domäne, Kontextstrategie, Konnektoren, MCP-Client | **Auslöser: ein zweiter Kunde oder eine zweite Vertikale.** Ohne ihn beginnt diese Phase nicht — spekulative Infrastruktur wird nicht geschrieben |
 
+> Der echte Executor der Phase 5 läuft über den Security Core (ADR-0031); Plan, Kriterien
+> und Stand: `docs/kern-integration.md`.
+
 > **Warum das Produkt vor die Veröffentlichung rückt** (ADR-0024): zwei Behauptungen dieses
 > Repos lassen sich ohne Kunden nicht belegen — das Prüfkriterium aus ADR-0018 braucht eine
 > zweite echte Domäne, Achse 04 braucht einen echten Geschäftskontext, und eine Fallstudie

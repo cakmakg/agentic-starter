@@ -80,6 +80,7 @@ ist bewusst: sie verhindert, dass zwei Gedächtnisse auseinanderdriften.
 | Tests | `tests/` — `node:test`, Aufruf `npm test` |
 | Domänen-Spezifikation, Bremsenreihenfolge | `src/domains/report/domain.js` · `src/domains/immobilien/domain.js` · Registrierung `src/kernel/registry.js` |
 | Immobilien-Domäne: Portfolio-Vertrag, Zeit-Baseline | `docs/kundenerkundung-immobilien.md` |
+| Kern-Integration: Stufen, Abnahmekriterien M1–M6, Stand | `docs/kern-integration.md` · ADR-0031 |
 | Evaluations-Harness und Datensatz | `evals/` — Aufruf `npm run evals`, Grenzen in `evals/README.md` |
 | Offene Themen | `.gehirn/themen.md` |
 | Verbindliche Projektkonventionen | `.gehirn/regeln.md` |
