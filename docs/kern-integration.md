@@ -66,8 +66,8 @@ Defekt. Nach Teil 1, 3 und 5 ist ein Kontrollpunkt in der Kern-Sitzung (CC-1 –
 |---|---|---|---|---|
 | 1 | ADR-0031 · dieses Dokument | Freigabe durch die Nutzerin oder den Nutzer | erledigt — beide freigegeben (2026-10-25); Kontrollpunkt der Kern-Sitzung auf Wunsch entfallen | ADR: `e56422f` · dieses Dokument: Commit „docs(kern-integration): …" |
 | 2 | Submodul `vendor/security-core` auf `157bdad…` · `--test-coverage-exclude="vendor/**"` · CI `submodules: true` · `engines.node >= 24` | Test: Gitlink und HEAD = Hash, `git status --porcelain` leer, `start.ts` exportiert `startSecurityCore`; Gegenprobe: eine Datei im Submodul geändert → rot | erledigt (2026-10-25) | `e19a77c` · `npm test` 134/134, Zeilenabdeckung 92,10 % (unverändert, `vendor/` ausgeschlossen) · `npm ci --dry-run` Exit 0 |
-| 3a | Scheinportal: Socket/Named Pipe, nur `Authorization: Bearer <Schlüssel>`, `POST /listings` → `{listingId}`, schlüsselgeschützter Lese-Endpunkt nur für den Operator | eigene Tests (geplant) | geplant | — |
-| 3b | `publish_listing`: Argumente genau `{portal, text}`, bekanntes Portal, 1–5000 Zeichen; `execute` prüft erneut, nur `POST /listings`, erwartet `200`, gibt nur `listingId` zurück, feste Fehlertexte; Schlüssellesen fail-closed mit `ConfigError` | Tests nach CC-6 (geplant): ungültig abgelehnt · genau eine Anfrage, nur an `/listings` · nur `listingId` im Ergebnis · kaputte Portalantwort ohne Leck · Testschlüssel nie in Fehlern, stdout/stderr, Ergebnissen | geplant | — |
+| 3a | Scheinportal: Socket/Named Pipe, nur `Authorization: Bearer <Schlüssel>`, `POST /listings` → `{listingId}`, schlüsselgeschützter Lese-Endpunkt nur für den Operator | eigene Tests | erledigt (2026-10-25) | `0992d91` · `node --test tests/fakePortal.test.js` 7/7; Gegenprobe: Schlüsselprüfung ausgeschaltet → die zwei 401-Tests rot |
+| 3b | `publish_listing`: Argumente genau `{portal, text}`, bekanntes Portal, 1–5000 Zeichen; `execute` prüft erneut, nur `POST /listings`, erwartet `200`, gibt nur `listingId` zurück, feste Fehlertexte; Schlüssellesen fail-closed mit `ConfigError` | Tests nach CC-6: ungültig abgelehnt · genau eine Anfrage, nur an `/listings` · nur `listingId` im Ergebnis · kaputte Portalantwort ohne Leck · Testschlüssel nie in Fehlern, stdout/stderr, Ergebnissen | erledigt (2026-10-25) | `291fd3f` · `node --test tests/publishListing.test.js` 16/16 (dreimal); `npm test` 157/157, Zeilenabdeckung 92,64 %; Gegenprobe: Schlüssel im Fehlertext → Leck-Test rot |
 | 4a | TB-1-Client: eine Anfrage je Verbindung, Körper genau `{action, arguments}`, feste Zeitgrenze, wirft nie, strenge Deutung, domänenfrei | Unit-Tests gegen einen Test-Socket (geplant) | geplant | — |
 | 4b | `src/kernel/` — vier Aufgaben, vier Commits: Executor an `startActionWorker` · Abbildung `executed/rejected/failed` → `DONE/REJECTED/FAILED` · Wegfall der Wiederholung · `PROCESSING` ins Log, beim Abspielen `FAILED` | `npm test`; Bericht der Schicht A beider Domänen zeichengleich bis auf den Zeitstempel | geplant | — |
 | 4c | Verdrahtung in `src/bin/` · `bin/securityCore.js` mit `startSecurityCore(() => [publishListing])` · Worker in `demoImmobilien.js` | Integrationstest (geplant; Portal und Kern als Kindprozesse) für M2–M4 · Strukturtest der Importe (geplant) in beide Richtungen (M5, Code) · Lauf in drei Terminals | geplant | — |
@@ -75,8 +75,9 @@ Defekt. Nach Teil 1, 3 und 5 ist ein Kontrollpunkt in der Kern-Sitzung (CC-1 –
 
 Nach Teil 4 **läuft das MVP lokal** — das ist noch keine Trennungsaussage.
 
-**Bei Teil 3 zu entscheiden:** ob das Portal den Schlüssel über dieselbe Datei prüft
-(gemeinsame Gruppe von Kern und Portal, Modus `0440`) oder nur ihren Hash hält.
+**Bei Teil 3 entschieden:** das Portal hält nur den SHA-256-Hash des Schlüssels
+(`PORTAL_CREDENTIAL_HASH_FILE`, ADR-0031 Nachtrag) — sonst wäre der Schlüssel auch für den
+Benutzer des Portals lesbar.
 
 ### 2.3 Bekannte Grenzen
 
@@ -121,3 +122,4 @@ Nach Teil 4 **läuft das MVP lokal** — das ist noch keine Trennungsaussage.
 | 2026-10-25 | Dokument angelegt aus dem Planungstext (§1, §7, §8), angepasst an ADR-0031 | Der Plan der Integration lebt im Repo, nicht in einem fremden Text |
 | 2026-10-25 | Noch nicht geschriebene Tests und Kriterien als `geplant` markiert, Statuswerte festgelegt | Ein geplanter Test darf nicht wie ein vorhandener aussehen; `erledigt` nur mit Commit und Prüfbefehl |
 | 2026-10-25 | Teil 2 und M6 erledigt | Submodul gepinnt (`e19a77c`); Pin-Test und zwei Gegenproben ausgeführt |
+| 2026-10-25 | Teil 3a und 3b erledigt; Schlüsselprüfung des Portals über den Hash | Scheinportal (`0992d91`) und Adapter (`291fd3f`) mit Tests und Gegenproben; Hash statt gemeinsamer Datei hält die Aussage aus Teil 10 wahr |
