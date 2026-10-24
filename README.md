@@ -43,11 +43,14 @@ vier davon direkt an ein Phasen-Gate gekoppelt.
 ## In 30 Sekunden starten
 
 ```bash
+git clone --recursive <repo>   # oder nach dem Klonen: git submodule update --init
 npm install
 npm run demo      # KEIN API-Schlüssel ERFORDERLICH — Mock-Modus zeigt den kompletten Ablauf
 ```
 
-> **Voraussetzung:** Node ≥ 20 (entwickelt und geprüft auf 24). Der Durchlauf zeigt
+> **Voraussetzung:** Node ≥ 24 — der Security Core unter `vendor/` (ADR-0031) ist
+> TypeScript und läuft über das Type Stripping von Node 24. `npm run demo` braucht das
+> Submodul nicht, `npm test` schon. Der Durchlauf zeigt
 > `researcher → writer ⇄ critic → fileSaver`, hält bei `human_approval` an, genehmigt
 > im Skript und endet mit `PUBLISHED`. Exit-Code 0.
 

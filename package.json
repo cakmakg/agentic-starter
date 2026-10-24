@@ -4,12 +4,15 @@
   "description": "Sifirdan agentic sistem icin yeniden-kullanilabilir starter.",
   "type": "module",
   "main": "src/bin/serve.js",
+  "engines": {
+    "node": ">=24"
+  },
   "scripts": {
     "start": "node src/bin/serve.js",
     "dev": "node --watch src/bin/serve.js",
     "demo": "node src/bin/demo.js",
     "demo:immobilien": "node src/bin/demoImmobilien.js",
-    "test": "node --test --test-force-exit --experimental-test-coverage --test-coverage-lines=80 --test-coverage-exclude=\"tests/**\" --test-coverage-exclude=src/adapters/http/server.js --test-coverage-exclude=src/bin/*.js \"tests/**/*.test.js\"",
+    "test": "node --test --test-force-exit --experimental-test-coverage --test-coverage-lines=80 --test-coverage-exclude=\"tests/**\" --test-coverage-exclude=src/adapters/http/server.js --test-coverage-exclude=src/bin/*.js --test-coverage-exclude=\"vendor/**\" \"tests/**/*.test.js\"",
     "evals": "node evals/runners/policy.js",
     "evals:quality": "node evals/runners/quality.js"
   },

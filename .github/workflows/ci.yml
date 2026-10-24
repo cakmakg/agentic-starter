@@ -16,7 +16,11 @@ jobs:
   schicht-a:
     runs-on: ubuntu-latest
     steps:
+      # Der Security Core liegt als Submodul unter vendor/ (ADR-0031); ohne ihn
+      # scheitert tests/kernPin.test.js — gewollt, ein fehlender Kern ist kein Grün.
       - uses: actions/checkout@v4
+        with:
+          submodules: true
 
       - uses: actions/setup-node@v4
         with:

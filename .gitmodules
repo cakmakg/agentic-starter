@@ -1,0 +1,3 @@
+[submodule "vendor/security-core"]
+	path = vendor/security-core
+	url = https://github.com/cakmakg/AISecuritySystem.git
