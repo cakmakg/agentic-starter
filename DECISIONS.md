@@ -6,7 +6,7 @@
 > Reift eine Regel aus `.gehirn/regeln.md` zu einer Architekturentscheidung, wandert sie
 > hierher und wird dort auf eine Zeile gekürzt.
 
-**Stand:** Phase 5 · **Zuletzt aktualisiert:** 2026-09-07 · **30 Einträge**
+**Stand:** Phase 5 · **Zuletzt aktualisiert:** 2026-10-25 · **31 Einträge**
 
 ---
 
@@ -681,3 +681,205 @@ Urteil — dieselbe Eigenschaft, die schon den Berichtsvertrag aus §1.1 messbar
 Trockenlauf, Verdrahtung gegen einen absichtlich ungültigen Schlüssel, Exit-Codes). **Die
 Messung selbst fehlt: in dieser Umgebung ist kein `ANTHROPIC_API_KEY` gesetzt.** T8 bleibt
 damit offen — nicht weil etwas fehlt, sondern weil die Zahl noch niemand erzeugt hat.
+
+
+## ADR-0031 — `PUBLISH_LISTING` läuft über den Security Core; der Portalschlüssel bleibt auf der Vertrauensseite
+
+**Kontext.** Phase 5 verlangt den ersten echten Executor (`PRODUCT.md` §7). Bis hierher
+simuliert `processOne` nur. Ein echter Portal-Aufruf im Prozess von agentic-starter hieße:
+der Portalschlüssel liegt im selben Prozess wie der Graph und der vom Modell geschriebene
+Text, und die Abwehr von B2 hinge allein daran, dass dieser Code fehlerfrei ist.
+
+Der Security Core aus `AISecuritySystem` bietet seit dem Tag `adapter-seam-v1` eine Naht
+dafür: ein Produkt registriert eigene Tool Adapter über `startSecurityCore(composeAdapters)`;
+sie laufen auf der Vertrauensseite neben ihrem Schlüssel, und die Agentenseite erreicht nur
+TB-1 — genau eine Anfrage `POST /actions` je Verbindung, Antwort `executed`, `rejected` oder
+`failed`. Der Vertrag zwischen Kern und Produkt steht dort in `docs/11-core-contract.md`
+(CC-1 – CC-10).
+
+Schritt 1 ist bewusst klein: ein genehmigtes Inserat gelangt über den Kern in ein
+**Scheinportal**. Nichts verlässt die Maschine.
+
+**Entscheidung — zehn Teile.**
+
+1. **Der echte Executor gehört in diese Phase.** `docs/security-model.md` §7 sagt „Echte
+   Executor bleiben außerhalb von v1"; der Satz stammt aus Phase 2. `PRODUCT.md` §5.2
+   terminiert den echten Executor auf Phase 5, und Phase 5 läuft. Der erste echte Executor
+   ist der dieses ADR: echte Mechanik, echte Prozessgrenze, echte Wirkung — auf einem
+   Scheinsystem. Der Satz in §7, die Beschriftung „simuliert, Phase 5 echt" in Abb. 5 und
+   die Zeile „Action-Executor simuliert" in `ARCHITECTURE.md` §4 werden im
+   Dokumentenschritt nachgezogen. `report` bleibt simuliert.
+
+2. **Der Kern ist gepinnt und unverändert.** Git-Submodul `vendor/security-core` auf Commit
+   `157bdad8583b4a494643103ed9fcef8e89fe3b53` — das Ziel des annotierten Tags
+   `adapter-seam-v1`, lokal und auf `origin` geprüft. Zwischen dem Commit des Nachweislaufs
+   (`3d56872`) und dem Tag ändern sich nur Dokumente und Nachweisdateien. Kein npm-Paket:
+   Node entfernt unter `node_modules` keine Typen
+   (`ERR_UNSUPPORTED_NODE_MODULES_TYPE_STRIPPING`). Ein Test prüft, dass der Submodul-HEAD
+   dieser Hash ist und `git status --porcelain` im Submodul leer bleibt (CC-4). Der Pin
+   ändert sich nur durch ein neues ADR (CC-2). Die Vertrauensseite importiert aus dem Kern
+   **ausschließlich** `minimal-core/src/core/start.ts` — die erklärte Naht (CC-5) —, keine
+   Interna wie `shared/http.ts`, auch wenn sie bequem wären. Weil der Kern TypeScript per
+   Type Stripping ausführt, verlangt `package.json` künftig `engines.node >= 24`; die CI
+   läuft bereits auf 24.
+
+3. **Drei Prozesse, und die Vertrauenslinie steht im Baum.**
+
+   | Prozess | Seite | Einstieg | Umgebung |
+   |---|---|---|---|
+   | Scheinportal | Außenwelt | `src/bin/fakePortal.js` → `src/adapters/portal/fakePortal.js` | `PORTAL_SOCKET`, `PORTAL_CREDENTIAL_FILE` |
+   | Security Core mit `publish_listing` | Vertrauensseite | `src/bin/securityCore.js` → `src/adapters/portal/publishListing.js` | `CORE_SOCKET`, `PORTAL_SOCKET`, `PORTAL_CREDENTIAL_FILE` |
+   | agentic-starter | Agentenseite | `src/bin/demoImmobilien.js` (später `serve.js`) → `src/adapters/security-core/client.js` | nur `SECURITY_CORE_SOCKET` |
+
+   Die Ringe aus ADR-0023 kennen keine Vertrauensseiten; dieses ADR ergänzt sie.
+   **Vertrauensseite** sind `src/adapters/portal/publishListing.js`, `src/bin/securityCore.js`
+   und `vendor/security-core/`; **Außenwelt** sind die beiden Portal-Dateien;
+   **Agentenseite** ist alles übrige unter `src/`. Ein Strukturtest prüft beide Richtungen:
+   die Agentenseite importiert nichts von der Vertrauensseite, der Außenwelt oder aus
+   `vendor/`; die Vertrauensseite importiert nur `node:*`, die Naht `start.ts` und ihre
+   eigenen Dateien — weder Kernel noch Domäne noch ein npm-Paket. So gelangen weder
+   LangChain noch der `.env`-Lader aus `kernel/config/env.js` in den Prozess, der den
+   Schlüssel hält.
+
+4. **Der Schlüssel liegt in einer Datei, die nur die Vertrauensseite liest.** Format: das
+   feste Präfix `asp_` und 64 Hex-Zeichen — das Präfix macht ein Leck durch Suche
+   auffindbar, ohne den Wert zu kennen (wie `mcc_` im Kern). Gelesen wird er nur von
+   `composeAdapters` in `bin/securityCore.js`. Das Scheinportal muss ihn prüfen können;
+   ob es dazu dieselbe Datei liest (gemeinsame Gruppe von Kern und Portal, Modus `0440`)
+   oder nur ihren Hash hält, wird beim Bau des Portals entschieden. Fehlt die Datei, ist sie
+   unlesbar oder hat sie das falsche Format, wirft `composeAdapters` einen `ConfigError` mit
+   festem Text; der Kern beendet sich, bevor TB-1 lauscht, und gibt nie den Inhalt aus. Der
+   Schlüssel steht **nie** in einer Umgebungsvariable, in `.env`, in einer `TenantConfig`,
+   im Code, in einem Log, einem Queue-Eintrag oder einem Ergebnis von agentic-starter.
+   `EXTEND.md` §6 („zuerst `TenantConfig.integrations`, dann globale env") gilt damit für
+   Aktionen über den Kern nicht mehr; auch Schlüssel je Mandant (Phase 6) wären Sache der
+   Vertrauensseite.
+
+5. **Kernergebnisse werden auf Queue-Status abgebildet — ohne Wiederholung.**
+
+   | Antwort des Kerns | Queue | Bedeutung |
+   |---|---|---|
+   | `executed` | `DONE` | Wirkung erfolgt; `result.listingId` wird mit dem Status protokolliert |
+   | wohlgeformtes `rejected` | `REJECTED` | keine Wirkung; `reason` wird protokolliert |
+   | `failed` — und alles andere: Zeitüberschreitung, Verbindungsfehler, unlesbare Antwort, Ausnahme im Executor | `FAILED` | Wirkung **unbekannt** |
+
+   **Keine automatische Wiederholung**, für keine Domäne: die Regel „nach drei Versuchen
+   `FAILED`" (`EXTEND.md` §6, `actionQueue.js`) entfällt. Nach `failed` kann ein zweiter
+   Versuch ein zweites Inserat sein; die Idempotenz aus ADR-0026 verhindert ein zweites
+   *Einreihen*, nicht eine zweite *Ausführung*, und sie reicht nicht bis ins Portal. Ein
+   neuer Versuch ist die Entscheidung eines Menschen und damit ein neuer Schlüssel
+   (ADR-0026, Konsequenz).
+
+   **Absturz während des Aufrufs:** `PROCESSING` wird vor dem Aufruf ins Log geschrieben;
+   findet das Abspielen eine Aktion in `PROCESSING`, wird sie `FAILED`. Das kehrt eine
+   Entscheidung aus T11 um — `ARCHITECTURE.md` §4 und der Kommentar in `actionQueue.js`
+   lassen `PROCESSING` bewusst aus dem Log, damit die Aktion als `PENDING` zurückkommt, „die
+   Idempotenz trägt ihn". Für einen simulierten Aufruf stimmte das, für einen echten nicht.
+   Ein Absturz zwischen Logzeile und Versand ergibt nun `FAILED`, obwohl nichts gesendet
+   wurde — die sichere Richtung.
+
+   Tor 1 und Tor 2 bleiben; sie verschärfen nur und erlauben nichts (CC-8). Tor 2 zählt
+   Zeichen (5000), der Kern Bytes (16 KiB je Anfrage): ein Text, den Tor 2 durchlässt, kann
+   als `rejected`/`request_too_large` zurückkommen — dann `REJECTED`, keine Wirkung. Ein
+   Test mit Mehrbyte-Text belegt das.
+
+6. **Der Executor ist Pflicht — am Worker, nicht an der Queue.**
+   `startActionWorker({ executor, intervalMs })` wirft ohne Executor. An
+   `createActionQueue` gehört er nicht: die Queue ist ein Modul-Singleton der Domäne
+   (`domains/<domäne>/actions.js`), und eine Domäne importiert keinen Adapter
+   (`ARCHITECTURE.md` §6) — ein Executor bei der Erzeugung erzwänge genau diesen Import.
+   Wer den Worker startet, setzt den Executor ein. `report` bekommt einen ausdrücklichen
+   Simulations-Executor in `domains/report/actions.js`, weil sein Veröffentlichungsweg
+   simuliert bleibt; `immobilien` hat im Produktcode **genau einen** Executor, den über den
+   Kern. Kein versteckter Standard, kein Zweig „Mock oder echt". Tests und Schicht A setzen
+   einen eigenen Test-Executor ein: Schicht A misst Tor 1 und Tor 2, nicht die Wirkung —
+   die Wirkung misst der Integrationstest. `src/kernel/` bleibt bei 18 Dateien (ADR-0021).
+
+7. **Verdrahtet wird in `src/bin/`.** Der TB-1-Client (`src/adapters/security-core/client.js`)
+   ist domänenfrei: er kennt weder `PUBLISH_LISTING` noch `publish_listing` und importiert
+   nur `node:*`. Er schickt je Verbindung eine Anfrage mit dem Körper genau
+   `{action, arguments}`, hat eine feste Zeitgrenze, die länger ist als die des Adapters zum
+   Portal, wirft nie und liest die Antwort so streng wie `interpretOutcome` im Kern. Den
+   Kernnamen eines Queue-Typs erklärt die Domäne (`domains/immobilien/actions.js`:
+   `PUBLISH_LISTING` → `publish_listing`, Muster `^[a-z][a-z0-9_]{0,63}$`); `bin/` setzt
+   zusammen — Typ → Kernname, Payload unverändert → `arguments`. `threadId` und
+   `idempotencyKey` verlassen die Agentenseite nicht. Fehlt `SECURITY_CORE_SOCKET`, startet
+   der Worker nicht: eine fehlende Konfiguration ist kein Ergebnis einer Aktion und darf
+   keine Aktion auf `FAILED` setzen.
+
+8. **`DELIVERED` heißt „eingereiht", nicht „veröffentlicht".** `delivery` setzt das
+   Artefakt beim Einreihen auf `DELIVERED` — vor jeder Ausführung. Ob ein Inserat online
+   ist, sagt der Queue-Status `DONE` mit seiner `listingId`, nicht das Artefakt. Die
+   Bedeutung bleibt (Schicht A vergleicht `DELIVERED`, ADR-0029); sie wird festgehalten,
+   nicht umbenannt. Durch Ausführen belegt (2026-10-25): `npm run demo:immobilien` endet
+   mit Exit 0 und Artefakt `DELIVERED`, das Queue-Log enthält drei `enqueue`-Zeilen und
+   keine einzige Statuszeile — der Worker von `immobilien` wird heute nirgends gestartet.
+
+9. **Die drei Fragen aus CC-6, für das Scheinportal beantwortet.**
+   - **Q-25 — trägt das Ergebnis eine Berechtigung?** Nein. Der Adapter gibt nur
+     `{listingId}` zurück, typgeprüft. Das Scheinportal hat genau einen Endpunkt mit
+     Wirkung, `POST /listings`, und keiner nimmt eine `listingId` als Berechtigung an.
+   - **P-20 — wie wird der Empfänger des Schlüssels geprüft?** Der Adapter sendet den
+     Schlüssel nur an einen Socket-Pfad (`PORTAL_SOCKET`), nie an eine Netzadresse — die
+     Lehre aus Befund F2 des Kerns. Dass nur das Portal diesen Pfad halten kann, belegen
+     erst die Verzeichnisrechte im WSL2-Lauf. Lokal unter Windows (Named Pipe, ein
+     Benutzer) ist es **nicht** belegt.
+   - **Q-22 — warum geht es nicht am Kern vorbei?** Jede Wirkung im Portal verlangt den
+     Schlüssel; der Benutzer von agentic-starter kann die Schlüsseldatei nicht lesen und
+     den Portal-Socket nicht öffnen. Auch das zeigt erst der WSL2-Lauf.
+
+   Für ein echtes Portal werden alle drei neu gestellt.
+
+10. **Was danach behauptet werden darf (CC-9).** Nach dem lokalen Lauf: „Der
+    Veröffentlichungsweg im Code führt über den Kern; im Code und in der Umgebung von
+    agentic-starter steht kein Portalschlüssel." Ein **„nur"** trägt diese Aussage nicht:
+    unter Windows laufen alle drei Prozesse unter einem Benutzer, und der Prozess von
+    agentic-starter könnte die Schlüsseldatei lesen und das Portal direkt ansprechen. Erst
+    nach dem WSL2-Lauf: „`PUBLISH_LISTING` erreicht das Scheinportal nur über den Security
+    Core (`adapter-seam-v1`, unverändert); der Portalschlüssel ist nur für den Benutzer des
+    Kerns lesbar, und der Benutzer von agentic-starter erreicht das Portal nicht direkt."
+    Jede Aussage nur mit einem datierten Lauf.
+
+    **Nicht behauptet:**
+    - Die Aussagen des Kerns (CC-3: Minimal Core, Egress-Kontrolle) gehen **nicht** über.
+      agentic-starter läuft nicht in der Domäne, die der Launcher des Kerns baut (CC-7):
+      sein Prozess hat Netz, Dateien und den Modellzugang seines Benutzers.
+    - **HITL ist kein Sicherheitstor.** `resolveApproval` ist eine Inhaltsfreigabe innerhalb
+      von agentic-starter. TB-1 ist nicht authentifiziert, und `decide.ts` erlaubt jede
+      gültige Aktion: wer den Kern-Socket öffnen kann, veröffentlicht ohne Freigabe — auch
+      ein kompromittierter Prozess von agentic-starter. B6 in `docs/security-model.md` §2
+      hält damit gegen ein fehlgeleitetes Modell (Agenten haben nur die Queue), nicht gegen
+      kompromittierten Code auf der Agentenseite. Eine Sicherheitsfreigabe ist Arbeit des
+      Kerns (TB-3, Q-09).
+    - Keine Richtlinie, kein Audit, keine Identität (Q-06, Q-13, Q-02/Q-03).
+    - Kein echtes Portal; nichts verlässt die Maschine.
+    - Der lokale Lauf unter Windows ist ein Funktionsnachweis, kein Trennungsnachweis.
+
+**Konsequenz.** Drei Prozesse statt einem: der Integrationstest startet Scheinportal und
+Kern als Kindprozesse, wie `tests/integration/persistence.test.js` es für T11 vormacht.
+Node 24 wird Pflicht. **Der Security Core ändert sich nicht** — keine Zeile unter
+`vendor/security-core/`, das prüft der Test aus Teil 2. Der eigene Kernel (`src/kernel/`)
+ändert sich an einer Stelle, der Queue-Mechanik — Worker-Signatur, Abbildung der
+Ergebnisse, Wegfall der Wiederholung, `PROCESSING` im Log. Jede dieser Änderungen ist eine
+eigene Aufgabe mit eigenem Test; die bestehenden Queue-Tests ändern ihren Aufruf, nicht ihr
+Ergebnis, und der Bericht der Schicht A bleibt für beide Domänen zeichengleich (bis auf den
+Zeitstempel). Die Liste der Portale steht danach an zwei Stellen — `TARGET_PORTALS` in der
+Domäne, die bekannte Menge im Adapter —, weil die Vertrauensseite die Domäne nicht
+importieren darf; ein Test vergleicht beide.
+
+**Grenzen, ausdrücklich.** Doppelte Veröffentlichung ist nicht ausgeschlossen, nur nicht
+mehr automatisch: hat ein als `FAILED` markierter Aufruf in Wahrheit gewirkt und reiht ein
+Mensch ihn neu ein, entsteht ein zweites Inserat. Schließen kann das erst ein
+Idempotenzschlüssel, den das Portal selbst kennt. Ein Verbindungsfehler vor dem Senden
+ergibt ebenfalls `FAILED`, obwohl beweisbar nichts gesendet wurde — bewusst streng: der
+Client unterscheidet nicht, wie früh eine Verbindung scheiterte.
+
+**Was hier NICHT entschieden ist** (Schritt 2 und später). Dass der Agent in der Domäne des
+Launchers läuft (CC-7) und sein Modellzugang über den Kern geht (Q-26) — samt der Frage, wo
+`.zustand/` dann schreiben darf. Ein echtes Portal mit eigenem Idempotenzschlüssel und den
+drei Fragen aus Teil 9. Richtlinie, Sicherheitsfreigabe, Audit, Identität — Arbeit des
+Kerns. Ein echter Executor für `report`. Eine HTTP-Route für `immobilien` (`server.js`
+verdrahtet heute nur `report`) und die Beraterkonsole.
+
+**Stand.** Freigegeben 2026-10-25, kein Code. Der Integrationsplan mit Teilen, Kriterien und
+Nachweisen entsteht als eigenes Dokument (`docs/kern-integration.md`).

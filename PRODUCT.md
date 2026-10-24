@@ -164,7 +164,7 @@ Jedes Kriterium muss **ausführbar** sein. „Die Datei existiert" ist kein Krit
 | D1 | `PRODUCT.md` — Umfang, Nicht-Ziele, messbare Kriterien | ✅ diese Datei |
 | D2 | `ARCHITECTURE.md` — Architekturentscheidungen und Trade-offs | ✅ inkl. bekannter Grenzen |
 | D3 | `EVALS.md` — Rahmen, Metrikdefinitionen, Baseline | ✅ Metriken mit Zähler und Nenner |
-| D4 | `DECISIONS.md` — mindestens 10 festgehaltene Architekturentscheidungen | ✅ 30 ADRs |
+| D4 | `DECISIONS.md` — mindestens 10 festgehaltene Architekturentscheidungen | ✅ 31 ADRs |
 | D5 | `docs/` — Workflow, Sicherheitsmodell, Entwicklungsprozess | ✅ alle drei |
 | D6 | `README.md` — im Case-Study-Format | ⏳ Phase 4 |
 
@@ -207,7 +207,7 @@ den Stand, nicht die Absicht: „belegt" steht nur dort, wo ein ausführbarer Na
 | Achse | Stand |
 |---|---|
 | **01 · KI-Anwendungen bauen und ausliefern** | Agentische Systeme ✅ Graph, HITL, Aktions-Isolation, Guardrail (Blockierschwelle seit Phase 5 erreichbar) · Evaluationsgetriebene Entwicklung 🟡 **Schicht A misst beide Domänen und läuft in CI** (20 + 23 Aufgaben, je zwei identische Durchgänge; ADR-0029); Schicht B — der **Ausgabevertrag** hat seit 2026-09-07 einen lauffähigen Harness (ADR-0030), es fehlt der Lauf gegen ein echtes Modell; der **Judge** bleibt Phase 4 · Produktionsbetrieb 🟡 Rate-Limit, Auth, Budget-Schalter, **Trace je Lauf** (T2.5); keine externe Observability-Anbindung · Grounding und ML-Grundlagen ❌ außerhalb des Umfangs |
-| **02 · Grundlagen des Software-Engineering** | Trade-offs ✅ 30 ADRs · Tests ✅ **129 Tests, 92,10 % Zeilenabdeckung** (2026-09-07) · Kontext- und Kostenarchitektur 🟡 Kosten je Lauf und Kontextwachstum werden **gemessen** (3.6 · 3.12), eine Kontextstrategie gibt es nicht (`ARCHITECTURE.md` §4) |
+| **02 · Grundlagen des Software-Engineering** | Trade-offs ✅ 31 ADRs · Tests ✅ **129 Tests, 92,10 % Zeilenabdeckung** (2026-09-07) · Kontext- und Kostenarchitektur 🟡 Kosten je Lauf und Kontextwachstum werden **gemessen** (3.6 · 3.12), eine Kontextstrategie gibt es nicht (`ARCHITECTURE.md` §4) |
 | **03 · Coding-Agenten einsetzen** | Aufgabenvorlage ✅ `docs/development-process.md` · Der Nachweis entsteht erst nach der Messschicht, in Phase 4 — vorher misst niemand, wo der Agent bricht |
 | **04 · Den Build formen** | Umfang, Nicht-Ziele, messbare Kriterien ✅ dieses Dokument · Echter Geschäftskontext 🟡 die Domäne `immobilien` steht als Skelett (T10 grün, 0 Zeilen im Kern); echt wird sie erst mit T12 — einem Lauf auf echten Portfolio-Daten, von einer Beraterin oder einem Berater genehmigt |
 
