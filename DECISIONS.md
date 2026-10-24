@@ -883,3 +883,11 @@ verdrahtet heute nur `report`) und die Beraterkonsole.
 
 **Stand.** Freigegeben 2026-10-25, kein Code. Der Integrationsplan mit Teilen, Kriterien und
 Nachweisen entsteht als eigenes Dokument (`docs/kern-integration.md`).
+
+**Nachtrag (2026-10-25, Teil 3): das Scheinportal hält nur den SHA-256-Hash des Schlüssels**
+(`PORTAL_CREDENTIAL_HASH_FILE`, genau 64 Hex-Zeichen) statt der Schlüsseldatei; die Zeile
+des Scheinportals in der Tabelle aus Teil 3 liest damit `PORTAL_SOCKET` und
+`PORTAL_CREDENTIAL_HASH_FILE`. Grund ist die Aussage aus Teil 10: „der Portalschlüssel ist
+nur für den Benutzer des Kerns lesbar" wäre mit einer gemeinsamen Datei (Gruppe, `0440`)
+falsch, weil auch der Benutzer des Portals sie läse. So liegt der Schlüssel an genau einer
+Stelle. Preis: der Operator erzeugt zwei Dateien.
