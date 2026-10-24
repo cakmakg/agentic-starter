@@ -53,6 +53,12 @@ wiederholt.
   im Block. **Grund:** Die Erzeugung wurde zweimal gestoppt; ohne Freigabe angelegte Dateien
   hinterlassen Reste, die wieder aufgeräumt werden müssen.
 
+- **Regel:** Eine Oberfläche wird aus Sicht der Person entworfen, die das System benutzt, und
+  folgt der Produktanalyse — nicht der inneren Mechanik (ADRs, BREMSEn, Evals). Vor einem
+  UI-Entwurf erst ein Plan im Frage-Antwort-Verfahren, kein Code. **Grund:** Der erste
+  UI-Plan (2026-09-07) war „çok karışık, hiçbir şey anlaşılmıyor" — er zeigte, wie das System
+  arbeitet, statt womit die Beraterin oder der Berater konfrontiert wird.
+
 - **Regel:** `template/` war ein aus einem anderen Projekt übernommenes „Gehirn"-System —
   kein zu löschender Ballast, sondern eine **anzupassende Quelle**. **Grund:** In der ersten
   Analyse wurde es für Aufräummüll gehalten; die Nutzerin oder der Nutzer hat korrigiert.

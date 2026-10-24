@@ -14,6 +14,9 @@ Wird ein Thema zu einer Entscheidung, wandert es nach `DECISIONS.md` und wird hi
 ### Thema: Drei Sitzungen Arbeit liegen uncommittet
 **Status:** 🔴 Wächst weiter. Guardrail-Schwelle, ADR-0026/0027, Persistenz, die Drift-Bereinigung, die Testinfrastruktur der Domäne, ADR-0028 und jetzt die Harness-Parametrisierung (ADR-0029) stehen im Arbeitsverzeichnis, nicht in der Historie. Die CI (P2 grün) hat von alledem nichts gesehen — ihr grüner Lauf gehört zu `17ecdfe`. Commit und Push sind eine ausdrückliche Entscheidung der Nutzerin oder des Nutzers, deshalb wartet es hier.
 
+### Thema: Beraterkonsole (UI `immobilien`) — Plan steht, E8 offen
+**Status:** 🟡 `docs/ui-freigabe-konsole.md` (2026-09-13), E1–E7 entschieden. **Offen:** E8 Schlüsselweg im Browser (blockiert Schritt 3) · Verhalten beim Revisionslimit durch Ausführen klären · Statusquelle je Objekt · ADR für Bearbeiten/Freigabe mit Hinweis (ändert die Aussage in `PRODUCT.md`/`EVALS.md`). Kein Code geschrieben.
+
 ### Thema: MCP-Adapter — Server in Phase 4
 **Status:** 🟡 ADR-0022: `run_workflow`, `get_status`, `list_queue` — **kein** `approve`. `@modelcontextprotocol/sdk` vorab freigegeben. Client wandert nach Phase 6 (ADR-0024).
 
