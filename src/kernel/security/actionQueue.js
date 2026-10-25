@@ -86,6 +86,13 @@ export function createActionQueue({ whitelist, validators, logName }) {
         }
       }
     }
+    // Endet eine Aktion im Log auf PROCESSING, wurde ihr Aufruf unterbrochen:
+    // Wirkung unbekannt → FAILED. Nur im Speicher, nicht ins Log: Lesen soll
+    // nichts schreiben, und ohne Sperre zwischen Prozessen (ARCHITECTURE.md §4)
+    // könnte ein so geschriebenes FAILED hinter dem DONE eines noch laufenden
+    // Aufrufs landen. Die letzte Zeile bleibt PROCESSING; jedes Abspielen kommt
+    // zum selben Ergebnis.
+    for (const a of queue) if (a.status === "PROCESSING") a.status = "FAILED";
     // Der Zähler setzt ÜBER der höchsten bekannten id auf. Bei 0 zu beginnen
     // vergäbe eine id zweimal, und `finde(id)` träfe dann die falsche Aktion.
     _id = queue.reduce((max, a) => Math.max(max, a.id), 0);
@@ -147,13 +154,6 @@ export function createActionQueue({ whitelist, validators, logName }) {
   // Worker: läuft periodisch. Atomar übernehmen → validieren → ausführen → abbilden.
   async function processOne(action) {
     action.attempts++;
-    // PROCESSING wandert bewusst NICHT ins Log: es ist ein Durchgangszustand.
-    // Stünde er dort und stürbe der Prozess mitten im Aufruf, käme die Aktion
-    // als PROCESSING zurück und der Worker rührte sie nie wieder an. So bleibt
-    // sie PENDING und wird erneut versucht — bei einem simulierten Aufruf
-    // folgenlos, bei einem echten die richtige Wahl (lieber ein zweiter
-    // Versuch als eine stehengebliebene Aktion; die Idempotenz trägt ihn).
-    action.status = "PROCESSING";
 
     // TOR 2: Payload-Validierung.
     const ok = validators[action.actionType]?.(action.payload);
@@ -161,6 +161,13 @@ export function createActionQueue({ whitelist, validators, logName }) {
       statusSetzen(action, "REJECTED");
       return;
     }
+
+    // PROCESSING steht VOR dem Aufruf im Log (ADR-0031 Teil 5). Stirbt der
+    // Prozess mitten im Aufruf, ist die Wirkung unbekannt; beim Abspielen wird
+    // die Aktion deshalb FAILED und nicht wieder PENDING — ein zweiter Lauf
+    // könnte ein zweites Inserat sein. Ein Absturz zwischen Logzeile und Versand
+    // ergibt FAILED, obwohl nichts gesendet wurde: die sichere Richtung.
+    statusSetzen(action, "PROCESSING");
 
     let antwort;
     try {

@@ -154,3 +154,29 @@ test("keine Wiederholung: der Executor läuft genau einmal, auch über weitere T
   assert.equal(status(q, id), "FAILED");
   assert.equal(aufrufe.length, 1);
 });
+
+// ── Absturz während des Aufrufs (ADR-0031 Teil 5) ──────────────────────
+
+test("PROCESSING steht im Log: eine zweite Queue liest die unterbrochene Aktion als FAILED", async () => {
+  const q = neueQueue("worker-absturz");
+  // Ein Aufruf, der nie zurückkommt — so steht die Aktion, als stürbe der
+  // Prozess mitten im Aufruf.
+  let begonnen = false;
+  const executor = () => {
+    begonnen = true;
+    return new Promise(() => {});
+  };
+  const id = q.enqueueAction({
+    threadId: "t8",
+    actionType: "PING",
+    payload: { text: "haengt" },
+  });
+  q.startActionWorker({ executor, intervalMs: 5 });
+  await warte(60);
+  q.stopActionWorker();
+  assert.ok(begonnen, "der Aufruf hat begonnen");
+  assert.equal(status(q, id), "PROCESSING");
+
+  const nachNeustart = neueQueue("worker-absturz");
+  assert.equal(status(nachNeustart, id), "FAILED");
+});
