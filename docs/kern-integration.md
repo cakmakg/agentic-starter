@@ -23,7 +23,7 @@ Plans stehen nur hier; `DECISIONS.md` trägt die Entscheidungen.
 
 | Stufe | Ziel in einem Satz | Vorbedingung im Kern | Stand | Nachweis |
 |---|---|---|---|---|
-| **1 · Scheinportal** | Ein genehmigtes Inserat gelangt über den Kern in ein Scheinportal; der Schlüssel bleibt auf der Vertrauensseite | keine — `adapter-seam-v1` | in Arbeit — Teil 1 erledigt | ADR-0031 |
+| **1 · Scheinportal** | Ein genehmigtes Inserat gelangt über den Kern in ein Scheinportal; der Schlüssel bleibt auf der Vertrauensseite | keine — `adapter-seam-v1` | in Arbeit — Teil 1–4b erledigt, 4c und 5 offen | ADR-0031 |
 | 2 · Echtes Portal | Ein echtes Portal (Sandbox-Konto) über denselben Adapterweg | keine | geplant — nächste | — |
 | 3 · Agent in der Domäne | Der Graph läuft in der Domäne des Launchers | Tag für Modellzugang (Q-26) | geplant | — |
 | 4 · Richtlinie | Das Produkt sagt per Konfiguration, welche Aktionen und Portale erlaubt sind | Tag für Richtlinie (Q-06, AD-09) | geplant | — |
@@ -75,7 +75,7 @@ Defekt. Nach Teil 1, 3 und 5 ist ein Kontrollpunkt in der Kern-Sitzung (CC-1 –
 | 3a | Scheinportal: Socket/Named Pipe, nur `Authorization: Bearer <Schlüssel>`, `POST /listings` → `{listingId}`, schlüsselgeschützter Lese-Endpunkt nur für den Operator | eigene Tests | erledigt (2026-10-25) | `0992d91` · `node --test tests/fakePortal.test.js` 7/7; Gegenprobe: Schlüsselprüfung ausgeschaltet → die zwei 401-Tests rot |
 | 3b | `publish_listing`: Argumente genau `{portal, text}`, bekanntes Portal, 1–5000 UTF-16-Einheiten; `execute` prüft erneut, nur `POST /listings`, erwartet `200`, gibt nur `listingId` zurück, feste Fehlertexte; Schlüssellesen fail-closed mit `ConfigError` | Tests nach CC-6: ungültig abgelehnt · genau eine Anfrage, nur an `/listings` · nur `listingId` im Ergebnis · kaputte Portalantwort ohne Leck · Testschlüssel nie in Fehlern, stdout/stderr, Ergebnissen | erledigt (2026-10-25) | `291fd3f` · `node --test tests/publishListing.test.js` 16/16 (dreimal); `npm test` 157/157, Zeilenabdeckung 92,64 %; Gegenprobe: Schlüssel im Fehlertext → Leck-Test rot |
 | 4a | **Die Verbindung allein, ohne Queue und ohne Kernel** (§2.3): TB-1-Client `src/adapters/security-core/client.js` · Einstieg der Vertrauensseite `src/bin/securityCore.js` | Client-Test gegen einen Test-Socket · Verbindungstest mit Portal und Kern als Kindprozesse | erledigt (2026-10-25) | `f455266` · `node --test tests/securityCoreClient.test.js tests/integration/kernVerbindung.test.js` 11/11 (zweimal; mit Coverage zweimal ohne Hängen); `npm test` 168/168, Zeilenabdeckung 92,87 %, `client.js` 100 %; Gegenproben: Feldprüfung für `rejected` entfernt → genau der Test „fast richtiges rejected" rot · Portal mit fremdem Hash → „gültig → executed" rot, dazu die zwei Folgetests, die dessen Eintrag zählen |
-| 4b | `src/kernel/` (§2.3) — vier Aufgaben, vier Commits: Executor an `startActionWorker` · Abbildung `executed/rejected/failed` → `DONE/REJECTED/FAILED` · Wegfall der Wiederholung · `PROCESSING` ins Log, beim Abspielen `FAILED` · **im selben Commit wie der Code:** `EXTEND.md` §6 (keine 3 Versuche, kein `TenantConfig`-Schlüssel) und `ARCHITECTURE.md` §4 (Zeile „`PROCESSING` wandert bewusst NICHT ins Log") | `npm test`; Bericht der Schicht A beider Domänen zeichengleich bis auf den Zeitstempel | geplant | — |
+| 4b | `src/kernel/` (§2.3) — vier Aufgaben, vier Commits: Executor an `startActionWorker` · Abbildung `executed/rejected/failed` → `DONE/REJECTED/FAILED` · Wegfall der Wiederholung · `PROCESSING` ins Log, beim Abspielen `FAILED` · **im selben Commit wie der Code:** `EXTEND.md` §6 (keine 3 Versuche, kein `TenantConfig`-Schlüssel), `docs/security-model.md` §6 und `ARCHITECTURE.md` §4 (Zeile „`PROCESSING` wandert bewusst NICHT ins Log") | `npm test`; Bericht der Schicht A beider Domänen zeichengleich bis auf den Zeitstempel | erledigt (2026-10-25) | `a38ad4c` · `181da8a` · `90524e7` · `3a7eb65` · je Commit `npm test` grün (171 → 173 → 174 → 175), Zeilenabdeckung 93,41 %, `actionQueue.js` 100 %; `npm run evals` je Commit: Bericht beider Domänen gleich dem vom 2026-09-07 bis auf den Zeitstempel; Gegenproben: sechs Sabotagen, jede macht genau ihren Test rot |
 | 4c | **Zusammensetzen — das MVP** (§2.3): Kernname in `domains/immobilien/actions.js` · Executor und Worker in `bin/demoImmobilien.js` · **im selben Commit wie der Code:** `docs/security-model.md` §7 („Echte Executor bleiben außerhalb von v1") und Abb. 5, `ARCHITECTURE.md` §4 (Zeile „Action-Executor simuliert") und §6, README | MVP-Test mit drei Prozessen (M2–M4 über die Queue) · Strukturtest der Vertrauenslinie (M5, Code) · Lauf in drei Terminals durch die Nutzerin oder den Nutzer (alle geplant) | geplant | — |
 | 5 | **WSL2-Lauf** (§2.4) · **Vorbedingungen:** CI auf Ubuntu grün · Fehlerhandler des Scheinportals (Befund F2a im Kern, P-20) · eigene, wegwerfbare Distribution (nicht `mc-evidence`) | Prüfungen C1–C6 mit vier Gegenproben; Ergebnisse in `nachweis/<datum>-wsl2/` (geplant) | geplant | — |
 
@@ -113,11 +113,12 @@ Schreiben im Chat gezeigt (`.gehirn/regeln.md`).
 1. `startActionWorker({ executor, intervalMs })` ist Pflicht; `report` gibt einen
    ausdrücklichen Simulations-Executor; die Aufrufer (`serve.js`, Tests, Harness) werden
    angepasst.
-2. Abbildung `executed`/`rejected`/`failed` → `DONE`/`REJECTED`/`FAILED`; `listingId` bzw.
-   `reason` ins Log.
-3. Keine Wiederholung; im selben Commit `EXTEND.md` §6.
-4. `PROCESSING` ins Log, beim Abspielen `FAILED`; im selben Commit `ARCHITECTURE.md` §4.
-   Test: eine zweite Queue mit demselben Log liest die Aktion als `FAILED`.
+2. Abbildung `executed`/`rejected`/`failed` → `DONE`/`REJECTED`/`FAILED`; `result` bzw.
+   `reason` ins Log — der Kernel deutet sie nicht und kennt keine `listingId`.
+3. Keine Wiederholung; im selben Commit `EXTEND.md` §6 und `docs/security-model.md` §6.
+4. `PROCESSING` ins Log, beim Abspielen `FAILED` — nur im Speicher, Lesen schreibt nicht;
+   im selben Commit `ARCHITECTURE.md` §4. Test: eine zweite Queue mit demselben Log liest
+   die Aktion als `FAILED`.
 
 - **Abnahme:** je Commit `npm test` grün; `npm run evals` liefert für beide Domänen
   denselben Bericht wie am 2026-09-07, bis auf den Zeitstempel.
@@ -241,3 +242,4 @@ landen in `nachweis/<datum>-wsl2/`. Danach: Stand und Nachweis in §2.2, die WSL
 | 2026-10-25 | Abschnitt „Vorgehen"; Dokumentkorrekturen aus ADR-0031 an 4b und 4c gebunden; Fehlerhandler des Portals als Vorbedingung von Teil 5 | Vorgabe: erst die minimale Grundlage prüfen, dann aufbauen. Was nur zusammen mit Code wahr wird, ändert sich im selben Commit wie der Code |
 | 2026-10-25 | Plan für Teil 4 und 5 im Einzelnen (§2.3, §2.4): 4a nur die Verbindung, 4b die Queue, 4c das Zusammensetzen; Vorbedingungen und Prüfungen C1–C6 für den WSL2-Lauf; `bin/securityCore.js` von 4c nach 4a; Demo ohne `SECURITY_CORE_SOCKET` → Exit 1; Skripte unter `nachweis/wsl2/`; D2 offen | Freigabe des Plans. Die Verbindung wird allein geprüft, bevor Kernel und Queue sie benutzen |
 | 2026-10-25 | Teil 4a erledigt — die Verbindung Client → Kern → Adapter → Portal ist zum ersten Mal Ende zu Ende belegt | `f455266`. Beim Bauen gefunden: ein durch Signal beendeter Kindprozess hat `exitCode` `null`; das Aufräumen im Test wartete deshalb unter Coverage endlos — korrigiert vor dem Commit |
+| 2026-10-25 | Teil 4b erledigt — die Queue ruft einen Pflicht-Executor auf, bildet sein Ergebnis ab, wiederholt nicht und liest eine unterbrochene Aktion als `FAILED` | `a38ad4c` `181da8a` `90524e7` `3a7eb65`. Drei freigegebene Abweichungen vom Plan: ins Log kommen `result`/`reason` statt `listingId` (der Kernel bleibt domänenfrei) · `PROCESSING` → `FAILED` beim Abspielen nur im Speicher (Lesen schreibt nicht; ohne Sperre zwischen Prozessen könnte ein geschriebenes `FAILED` hinter einem späteren `DONE` landen) · `docs/security-model.md` §6 mit Aufgabe 3, weil der Satz mit diesem Code falsch wurde |
