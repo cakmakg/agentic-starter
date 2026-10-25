@@ -11,6 +11,12 @@ Der Pin ändert sich nur durch ein neues ADR (CC-2). Ausführlich wird nur die l
 die nächste Stufe beschrieben; spätere stehen als eine Zeile — früh geschriebene Details
 veralten.
 
+**Vorgehen** (Vorgabe der Nutzerin oder des Nutzers, 2026-10-25): erst der Plan, dann der
+Code; der Code auf der einfachsten Stufe, die die Verbindung trägt. Jede Stufe wird zuerst
+in ihrer minimalen Form gebaut, **geprüft und getestet** — erst dann folgt die nächste.
+Einzelheiten bauen auf einer geprüften Grundlage auf, nicht daneben. Einzelheiten dieses
+Plans stehen nur hier; `DECISIONS.md` trägt die Entscheidungen.
+
 ---
 
 ## 1. Stufen
@@ -69,9 +75,9 @@ Defekt. Nach Teil 1, 3 und 5 ist ein Kontrollpunkt in der Kern-Sitzung (CC-1 –
 | 3a | Scheinportal: Socket/Named Pipe, nur `Authorization: Bearer <Schlüssel>`, `POST /listings` → `{listingId}`, schlüsselgeschützter Lese-Endpunkt nur für den Operator | eigene Tests | erledigt (2026-10-25) | `0992d91` · `node --test tests/fakePortal.test.js` 7/7; Gegenprobe: Schlüsselprüfung ausgeschaltet → die zwei 401-Tests rot |
 | 3b | `publish_listing`: Argumente genau `{portal, text}`, bekanntes Portal, 1–5000 UTF-16-Einheiten; `execute` prüft erneut, nur `POST /listings`, erwartet `200`, gibt nur `listingId` zurück, feste Fehlertexte; Schlüssellesen fail-closed mit `ConfigError` | Tests nach CC-6: ungültig abgelehnt · genau eine Anfrage, nur an `/listings` · nur `listingId` im Ergebnis · kaputte Portalantwort ohne Leck · Testschlüssel nie in Fehlern, stdout/stderr, Ergebnissen | erledigt (2026-10-25) | `291fd3f` · `node --test tests/publishListing.test.js` 16/16 (dreimal); `npm test` 157/157, Zeilenabdeckung 92,64 %; Gegenprobe: Schlüssel im Fehlertext → Leck-Test rot |
 | 4a | TB-1-Client: eine Anfrage je Verbindung, Körper genau `{action, arguments}`, feste Zeitgrenze, wirft nie, strenge Deutung, domänenfrei | Unit-Tests gegen einen Test-Socket (geplant) | geplant | — |
-| 4b | `src/kernel/` — vier Aufgaben, vier Commits: Executor an `startActionWorker` · Abbildung `executed/rejected/failed` → `DONE/REJECTED/FAILED` · Wegfall der Wiederholung · `PROCESSING` ins Log, beim Abspielen `FAILED` | `npm test`; Bericht der Schicht A beider Domänen zeichengleich bis auf den Zeitstempel | geplant | — |
-| 4c | Verdrahtung in `src/bin/` · `bin/securityCore.js` mit `startSecurityCore(() => [publishListing])` · Worker in `demoImmobilien.js` | Integrationstest (geplant; Portal und Kern als Kindprozesse) für M2–M4 · Strukturtest der Importe (geplant) in beide Richtungen (M5, Code) · Lauf in drei Terminals | geplant | — |
-| 5 | WSL2-Lauf: eigene Distribution (nicht `mc-evidence`), drei OS-Benutzer, Socket-Verzeichnisse und Schlüsseldatei nach ADR-0031, Installationsverzeichnis für den Agenten nicht schreibbar (S2) | Prüfungen (geplant): Schlüssel nicht in `/proc/<pid>/environ` von agentic-starter, Schlüsseldatei nicht lesbar, Portal-Socket nicht erreichbar, Veröffentlichung nur über den Kern; Ergebnisse in einem datierten Nachweisordner | geplant | — |
+| 4b | `src/kernel/` — vier Aufgaben, vier Commits: Executor an `startActionWorker` · Abbildung `executed/rejected/failed` → `DONE/REJECTED/FAILED` · Wegfall der Wiederholung · `PROCESSING` ins Log, beim Abspielen `FAILED` · **im selben Commit wie der Code:** `EXTEND.md` §6 (keine 3 Versuche, kein `TenantConfig`-Schlüssel) und `ARCHITECTURE.md` §4 (Zeile „`PROCESSING` wandert bewusst NICHT ins Log") | `npm test`; Bericht der Schicht A beider Domänen zeichengleich bis auf den Zeitstempel | geplant | — |
+| 4c | Verdrahtung in `src/bin/` · `bin/securityCore.js` mit `startSecurityCore(() => [publishListing])` · Worker in `demoImmobilien.js` · **im selben Commit wie der Code:** `docs/security-model.md` §7 („Echte Executor bleiben außerhalb von v1") und Abb. 5, `ARCHITECTURE.md` §4 (Zeile „Action-Executor simuliert") | Integrationstest (geplant; Portal und Kern als Kindprozesse) für M2–M4 · Strukturtest der Importe (geplant) in beide Richtungen (M5, Code) · Lauf in drei Terminals | geplant | — |
+| 5 | WSL2-Lauf: eigene Distribution (nicht `mc-evidence`), drei OS-Benutzer, Socket-Verzeichnisse und Schlüsseldatei nach ADR-0031, Installationsverzeichnis für den Agenten nicht schreibbar (S2) · **Vorbedingung:** das Scheinportal bekommt einen Fehlerhandler für den laufenden Server wie `keepServing` im Kern — ein abgestürztes Portal gäbe seinen Socket-Pfad frei (Befund F2a im Kern), und P-20 hängt daran | Prüfungen (geplant): Schlüssel nicht in `/proc/<pid>/environ` von agentic-starter, Schlüsseldatei nicht lesbar, Portal-Socket nicht erreichbar, Veröffentlichung nur über den Kern; Ergebnisse in einem datierten Nachweisordner | geplant | — |
 
 Nach Teil 4 **läuft das MVP lokal** — das ist noch keine Trennungsaussage.
 
@@ -124,3 +130,4 @@ Benutzer des Portals lesbar.
 | 2026-10-25 | Teil 2 und M6 erledigt | Submodul gepinnt (`e19a77c`); Pin-Test und zwei Gegenproben ausgeführt |
 | 2026-10-25 | Teil 3a und 3b erledigt; Schlüsselprüfung des Portals über den Hash | Scheinportal (`0992d91`) und Adapter (`291fd3f`) mit Tests und Gegenproben; Hash statt gemeinsamer Datei hält die Aussage aus Teil 10 wahr |
 | 2026-10-25 | M3 berichtigt: Steuerzeichen statt Mehrbyte-Text; 3b zählt UTF-16-Einheiten | Mehrbyte-Text unter 5000 Einheiten bleibt unter 16 KiB (gemessen) — der alte Fall hätte Tor 2 geprüft, nicht den Kern |
+| 2026-10-25 | Abschnitt „Vorgehen"; Dokumentkorrekturen aus ADR-0031 an 4b und 4c gebunden; Fehlerhandler des Portals als Vorbedingung von Teil 5 | Vorgabe: erst die minimale Grundlage prüfen, dann aufbauen. Was nur zusammen mit Code wahr wird, ändert sich im selben Commit wie der Code |
