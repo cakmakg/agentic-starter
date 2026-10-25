@@ -80,6 +80,8 @@ export function createActionQueue({ whitelist, validators, logName }) {
         if (a) {
           a.status = e.status;
           a.attempts = e.attempts;
+          if ("result" in e) a.result = e.result;
+          if ("reason" in e) a.reason = e.reason;
         }
       }
     }
@@ -90,14 +92,18 @@ export function createActionQueue({ whitelist, validators, logName }) {
 
   // Statuswechsel gehören ins Log, sonst führte ein Neustart eine bereits
   // erledigte Aktion erneut aus — genau das, was ADR-0026 verhindern soll.
-  function statusSetzen(action, status) {
+  // `zusatz` trägt, was der Executor zurückgab (`result` oder `reason`). Der
+  // Kernel deutet es nicht — er kennt keine listingId, nur das Ergebnis.
+  function statusSetzen(action, status, zusatz = {}) {
     action.status = status;
+    Object.assign(action, zusatz);
     if (logName) {
       appendLog(logName, {
         art: "status",
         id: action.id,
         status,
         attempts: action.attempts,
+        ...zusatz,
       });
     }
   }
@@ -155,18 +161,33 @@ export function createActionQueue({ whitelist, validators, logName }) {
       return;
     }
 
+    let antwort;
     try {
       // Der Executor bekommt nur, was die Wirkung braucht: threadId und
       // idempotencyKey verlassen die Queue nicht (ADR-0031 Teil 7). Eine Kopie,
       // damit er das eingereihte Payload nicht verändern kann.
-      await executor({
+      antwort = await executor({
         actionType: action.actionType,
         payload: structuredClone(action.payload),
       });
-      statusSetzen(action, "DONE");
     } catch {
-      if (action.attempts >= 3) statusSetzen(action, "FAILED");
-      else statusSetzen(action, "PENDING"); // wird erneut versucht
+      antwort = null; // eine Ausnahme ist kein Ergebnis: Wirkung unbekannt
+    }
+
+    // Abbildung nach ADR-0031 Teil 5, so streng wie der TB-1-Client: nur ein
+    // wohlgeformtes `rejected` heißt „keine Wirkung". Alles andere — `failed`,
+    // ein `rejected` ohne Grund, eine Ausnahme — ist eine unbekannte Wirkung.
+    if (antwort?.outcome === "executed") {
+      statusSetzen(action, "DONE", { result: antwort.result });
+    } else if (
+      antwort?.outcome === "rejected" &&
+      typeof antwort.reason === "string"
+    ) {
+      statusSetzen(action, "REJECTED", { reason: antwort.reason });
+    } else if (action.attempts >= 3) {
+      statusSetzen(action, "FAILED");
+    } else {
+      statusSetzen(action, "PENDING"); // wird erneut versucht
     }
   }
 

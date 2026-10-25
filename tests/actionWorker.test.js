@@ -86,3 +86,57 @@ test("der Executor bekommt nur actionType und payload", async () => {
   await warte(60);
   assert.deepEqual(aufrufe, [{ actionType: "PING", payload: { text: "hallo" } }]);
 });
+
+// ── Abbildung der Ergebnisse (ADR-0031 Teil 5) ─────────────────────────
+
+test("executed → DONE mit result, rejected → REJECTED mit reason — auch nach dem Abspielen", async () => {
+  const q = neueQueue("worker-abbildung");
+  const executor = async ({ payload }) =>
+    payload.text === "geht"
+      ? { outcome: "executed", result: { listingId: "L-1" } }
+      : { outcome: "rejected", reason: "invalid_arguments" };
+  const ok = q.enqueueAction({
+    threadId: "t5",
+    actionType: "PING",
+    payload: { text: "geht" },
+  });
+  const nein = q.enqueueAction({
+    threadId: "t5",
+    actionType: "PING",
+    payload: { text: "nein" },
+  });
+  q.startActionWorker({ executor, intervalMs: 5 });
+  await warte(60);
+  q.stopActionWorker();
+
+  // Eine zweite Queue mit demselben Log sieht, was die erste geschrieben hat.
+  for (const sicht of [q, neueQueue("worker-abbildung")]) {
+    const a = sicht.getQueue().find((x) => x.id === ok);
+    const b = sicht.getQueue().find((x) => x.id === nein);
+    assert.equal(a.status, "DONE");
+    assert.deepEqual(a.result, { listingId: "L-1" });
+    assert.equal(b.status, "REJECTED");
+    assert.equal(b.reason, "invalid_arguments");
+  }
+});
+
+test("failed und jede unklare Antwort → FAILED, nie DONE oder REJECTED", async () => {
+  const antworten = {
+    failed: { outcome: "failed" },
+    ohneGrund: { outcome: "rejected" },
+    ohneText: { outcome: "rejected", reason: 42 },
+    leer: undefined,
+    wirft: null, // Signal: der Executor wirft
+  };
+  const q = neueQueue();
+  const executor = async ({ payload }) => {
+    if (payload.text === "wirft") throw new Error("kaputt");
+    return antworten[payload.text];
+  };
+  const ids = Object.keys(antworten).map((text) =>
+    q.enqueueAction({ threadId: "t6", actionType: "PING", payload: { text } }),
+  );
+  q.startActionWorker({ executor, intervalMs: 5 });
+  await warte(80);
+  for (const id of ids) assert.equal(status(q, id), "FAILED");
+});
