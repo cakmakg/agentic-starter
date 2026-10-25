@@ -165,6 +165,8 @@ Graph-Topologie, MCP-Sequenz · [`docs/workflow.md`](docs/workflow.md) — HITL-
 | `adapters/http/server.js` | HTTP-Routen — reiner Adapter über dem Kern |
 | `adapters/portal/publishListing.js` | Tool Adapter `publish_listing` — Vertrauensseite, läuft im Security Core (ADR-0031) |
 | `adapters/portal/fakePortal.js` · `bin/fakePortal.js` | Scheinportal — jede Wirkung nur mit Schlüssel (ADR-0031) |
+| `adapters/security-core/client.js` | TB-1-Client — die Agentenseite fragt eine Wirkung nur hier an (ADR-0031) |
+| `bin/securityCore.js` | Startet den Security Core mit `publish_listing` — Vertrauensseite (ADR-0031) |
 | `bin/demo.js` · `bin/demoImmobilien.js` | Ende-zu-Ende-Demo je Domäne, ohne HTTP |
 | `bin/serve.js` | HTTP-Server-Start |
 

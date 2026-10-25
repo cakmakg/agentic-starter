@@ -330,12 +330,15 @@ src/
 │   ├── portal/                 ✅ Phase 5 (ADR-0031) — zwei Seiten in einem Verzeichnis
 │   │   ├── publishListing.js   Tool Adapter · VERTRAUENSSEITE, läuft im Prozess des Security Core
 │   │   └── fakePortal.js       Scheinportal · AUSSENWELT, steht für ein echtes Portal
+│   ├── security-core/          ✅ Phase 5 (ADR-0031)
+│   │   └── client.js           TB-1-Client · AGENTENSEITE, die einzige Art, eine Wirkung anzufragen
 │   └── mcp/                    ⏳ Phase 4 (ADR-0022)
 │
 └── bin/
     ├── demo.js
     ├── demoImmobilien.js       ✅ Phase 5 — golden path der Domäne immobilien
     ├── fakePortal.js           ✅ Phase 5 (ADR-0031) — Prozess des Scheinportals
+    ├── securityCore.js         ✅ Phase 5 (ADR-0031) — Einstieg der Vertrauensseite
     └── serve.js
 
 vendor/
@@ -350,7 +353,7 @@ Prozess welchem Code vertrauen muss.
 
 | Seite | Dateien | Darf importieren |
 |---|---|---|
-| **Vertrauensseite** | `adapters/portal/publishListing.js` · `vendor/security-core/` | nur `node:*`, die Naht `start.ts` und eigene Dateien |
+| **Vertrauensseite** | `adapters/portal/publishListing.js` · `bin/securityCore.js` · `vendor/security-core/` | nur `node:*`, die Naht `start.ts` und eigene Dateien |
 | **Außenwelt** | `adapters/portal/fakePortal.js` · `bin/fakePortal.js` | — steht für ein fremdes System; ADR-0031 regelt nur die beiden anderen Seiten |
 | **Agentenseite** | alles übrige unter `src/` | nichts von den beiden anderen Seiten, nichts aus `vendor/` |
 
