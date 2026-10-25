@@ -140,3 +140,17 @@ test("failed und jede unklare Antwort → FAILED, nie DONE oder REJECTED", async
   await warte(80);
   for (const id of ids) assert.equal(status(q, id), "FAILED");
 });
+
+test("keine Wiederholung: der Executor läuft genau einmal, auch über weitere Takte", async () => {
+  const q = neueQueue();
+  const { executor, aufrufe } = aufzeichnend({ outcome: "failed" });
+  const id = q.enqueueAction({
+    threadId: "t7",
+    actionType: "PING",
+    payload: { text: "einmal" },
+  });
+  q.startActionWorker({ executor, intervalMs: 5 });
+  await warte(80); // reichlich Takte: mit Wiederholung wären es drei Aufrufe
+  assert.equal(status(q, id), "FAILED");
+  assert.equal(aufrufe.length, 1);
+});

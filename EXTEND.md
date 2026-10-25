@@ -77,11 +77,20 @@ HITL-Zusage nur so haltbar wie der Prozess.
 
 ## 6. Echte Action-Executor
 
-`processOne` in `src/kernel/security/actionQueue.js` simuliert derzeit nur. Echte Auslieferung:
+Der Worker führt nicht selbst aus: wer ihn startet, setzt einen Executor ein
+(`startActionWorker({ executor, intervalMs })`, ADR-0031 Teil 6). `report` setzt einen
+ausdrücklichen Simulations-Executor ein; für `PUBLISH_LISTING` entsteht der erste echte über
+den Security Core (Stand in `docs/kern-integration.md`). Echte Auslieferung:
 
 - Ein Executor je `actionType`: Telegram (`sendMessage`), E-Mail (SMTP/Resend), Webhook (`fetch`).
-- Setze ein **hartes Timeout**, nach 3 Versuchen `FAILED`.
-- Anmeldedaten pro Tenant: zuerst `TenantConfig.integrations`, dann globale env.
+- Ein Executor antwortet wie der Kern: `executed` → `DONE`, wohlgeformtes `rejected` →
+  `REJECTED`, alles andere → `FAILED`.
+- Setze ein **hartes Timeout**. **Keine automatische Wiederholung:** nach `failed` ist die
+  Wirkung unbekannt, ein zweiter Versuch könnte sie verdoppeln. Einen neuen Versuch
+  entscheidet ein Mensch.
+- Anmeldedaten liegen nie auf der Agentenseite — weder in der Umgebung noch in einer
+  `TenantConfig`: für Aktionen über den Kern liest sie die Vertrauensseite aus einer Datei
+  (ADR-0031 Teil 4).
 - Erlaube Agenten **niemals**, direkt eine API aufzurufen — es läuft immer über die Queue.
 
 > Bevor du echte Executor anschließt, muss Phase 2 abgeschlossen sein: solange eine Ablehnung

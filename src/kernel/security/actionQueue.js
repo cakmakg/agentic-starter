@@ -7,7 +7,8 @@
 // Zwei Tore:
 //   1) enqueueAction: steht der actionType nicht auf der Whitelist, wird schon
 //      VOR dem Schreiben abgelehnt.
-//   2) Worker: prüft das Payload gegen Schema und Länge, nach N Versuchen FAILED.
+//   2) Worker: prüft das Payload gegen Schema und Länge. Ist die Wirkung
+//      unbekannt, FAILED — ohne Wiederholung (ADR-0031 Teil 5).
 //
 // So kann selbst ein gekaperter Agent nur Aktionen in die Queue legen, die auf
 // der Whitelist stehen und begrenzt sind — an die Außenwelt kommt er nicht direkt.
@@ -143,7 +144,7 @@ export function createActionQueue({ whitelist, validators, logName }) {
     return action.id;
   }
 
-  // Worker: läuft periodisch. Atomar übernehmen → validieren → ausführen → retry/fail.
+  // Worker: läuft periodisch. Atomar übernehmen → validieren → ausführen → abbilden.
   async function processOne(action) {
     action.attempts++;
     // PROCESSING wandert bewusst NICHT ins Log: es ist ein Durchgangszustand.
@@ -184,10 +185,11 @@ export function createActionQueue({ whitelist, validators, logName }) {
       typeof antwort.reason === "string"
     ) {
       statusSetzen(action, "REJECTED", { reason: antwort.reason });
-    } else if (action.attempts >= 3) {
-      statusSetzen(action, "FAILED");
     } else {
-      statusSetzen(action, "PENDING"); // wird erneut versucht
+      // Keine Wiederholung (ADR-0031 Teil 5): nach einer unbekannten Wirkung
+      // könnte ein zweiter Versuch ein zweites Inserat sein. Ein neuer Versuch
+      // ist die Entscheidung eines Menschen — und damit ein neuer Schlüssel.
+      statusSetzen(action, "FAILED");
     }
   }
 

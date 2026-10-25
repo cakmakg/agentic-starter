@@ -137,8 +137,9 @@ Agent → ActionQueue (schreibt nur) → Worker (liest, validiert, führt aus)
 | `WEBHOOK` | `url` ist ein String und beginnt mit `https://` |
 | `EMAIL` | `to` enthält `@`, `body` höchstens 5000 Zeichen |
 
-Scheitert die Validierung → `REJECTED`. Bei einem Fehler in der Ausführung → nach drei
-Versuchen `FAILED`.
+Scheitert die Validierung → `REJECTED`. Ist die Wirkung der Ausführung unbekannt (Fehler,
+Zeitüberschreitung, unklare Antwort) → sofort `FAILED`, ohne automatische Wiederholung
+(ADR-0031 Teil 5).
 
 **Der Sicherheitsgewinn:** Die Angriffsfläche eines gekaperten Agenten schrumpft von
 „alles, was das Netz erlaubt" auf drei schemabegrenzte Formen. Selbst ein vollständig
