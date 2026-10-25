@@ -360,7 +360,9 @@ Prozess welchem Code vertrauen muss.
 | **Außenwelt** | `adapters/portal/fakePortal.js` · `bin/fakePortal.js` | — steht für ein fremdes System; ADR-0031 regelt nur die beiden anderen Seiten |
 | **Agentenseite** | alles übrige unter `src/` | nichts von den beiden anderen Seiten, nichts aus `vendor/` |
 
-Was davon schon gebaut ist und welche Teile noch fehlen, steht in `docs/kern-integration.md`.
+`tests/vertrauenslinie.test.js` prüft die Tabelle am Quelltext, in beide Richtungen — eine
+Prüfung des Codes, keine Prozessgrenze; die zeigt erst der WSL2-Lauf. Was davon schon gebaut
+ist und welche Teile noch fehlen, steht in `docs/kern-integration.md`.
 
 ### Die Naht ist an drei Stellen fein
 
