@@ -6,54 +6,24 @@
 
 import { test, after } from "node:test";
 import assert from "node:assert/strict";
-import { spawn } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
 import { frageKern } from "../../src/adapters/security-core/client.js";
 import { hashVon } from "../../src/adapters/portal/fakePortal.js";
+import { starte, stoppe } from "../helpers/prozesse.js";
 import {
   anfrage,
   neuerSchluessel,
   neuerSocketPfad,
 } from "../helpers/socket.js";
 
-const BIN = path.resolve(import.meta.dirname, "..", "..", "src", "bin");
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "kernverbindung-"));
 function datei(name, inhalt) {
   const p = path.join(tmp, name);
   fs.writeFileSync(p, inhalt);
   return p;
-}
-
-// Startet ein bin-Skript und wartet auf "ready" oder auf das Ende des Prozesses.
-function starte(skript, env) {
-  return new Promise((resolve, reject) => {
-    const kind = spawn(process.execPath, [path.join(BIN, skript)], {
-      env: { PATH: process.env.PATH ?? "", ...env },
-    });
-    let stdout = "";
-    let stderr = "";
-    kind.stdout.on("data", (d) => {
-      stdout += d;
-      if (stdout.includes("ready "))
-        resolve({ kind, bereit: true, stdout, stderr });
-    });
-    kind.stderr.on("data", (d) => (stderr += d));
-    kind.on("error", reject);
-    kind.on("exit", (code) =>
-      resolve({ kind, bereit: false, code, stdout, stderr }),
-    );
-  });
-}
-function stoppe(kind) {
-  return new Promise((r) => {
-    // Durch ein Signal beendet, bleibt exitCode null — dann steht signalCode.
-    if (kind.exitCode !== null || kind.signalCode !== null) return r();
-    kind.once("exit", () => r());
-    kind.kill();
-  });
 }
 
 const SCHLUESSEL = neuerSchluessel();
