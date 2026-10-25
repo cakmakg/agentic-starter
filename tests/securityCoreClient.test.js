@@ -8,7 +8,10 @@ import { test, after } from "node:test";
 import assert from "node:assert/strict";
 import http from "node:http";
 
-import { frageKern } from "../src/adapters/security-core/client.js";
+import {
+  frageKern,
+  kernExecutor,
+} from "../src/adapters/security-core/client.js";
 import { neuerSocketPfad } from "./helpers/socket.js";
 
 // Ein Stellvertreter für den Kern: zeichnet jede Anfrage auf und antwortet mit
@@ -107,5 +110,42 @@ test("nicht serialisierbare Argumente: failed, und es geht keine Anfrage hinaus"
   assert.deepEqual(await frageKern(KERN, "publish_listing", { n: 1n }), {
     outcome: "failed",
   });
+  assert.equal(anfragen.length, 0);
+});
+
+// ── kernExecutor: der Executor für den Action-Worker (Teil 4c) ──────────
+
+test("kernExecutor: Queue-Typ → Kernname, Payload unverändert als arguments", async () => {
+  anfragen.length = 0;
+  antwort = '{"outcome":"executed","result":{"listingId":7}}';
+  const executor = kernExecutor({
+    socketPath: KERN,
+    kernNamen: { PUBLISH_LISTING: "publish_listing" },
+  });
+  const ergebnis = await executor({
+    actionType: "PUBLISH_LISTING",
+    payload: { portal: "immowelt", text: "x" },
+  });
+  assert.deepEqual(ergebnis, { outcome: "executed", result: { listingId: 7 } });
+  assert.deepEqual(JSON.parse(anfragen[0].body), {
+    action: "publish_listing",
+    arguments: { portal: "immowelt", text: "x" },
+  });
+});
+
+test("kernExecutor: ein Typ ohne Kernnamen geht nicht hinaus und ist failed", async () => {
+  anfragen.length = 0;
+  antwort = '{"outcome":"executed","result":{"listingId":7}}';
+  const executor = kernExecutor({
+    socketPath: KERN,
+    kernNamen: { PUBLISH_LISTING: "publish_listing" },
+  });
+  for (const actionType of ["DELETE_LISTING", "constructor", "__proto__"]) {
+    assert.deepEqual(
+      await executor({ actionType, payload: {} }),
+      { outcome: "failed" },
+      actionType,
+    );
+  }
   assert.equal(anfragen.length, 0);
 });

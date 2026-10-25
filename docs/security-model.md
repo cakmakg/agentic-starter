@@ -114,7 +114,7 @@ flowchart LR
   Q --> WK["Worker"]
   WK --> T2{"Tor 2<br/>Payload-Schema"}
   T2 -->|ungueltig| RJ2["abgelehnt"]
-  T2 -->|gueltig| EX["Ausfuehrung<br/>simuliert, Phase 5 echt"]
+  T2 -->|gueltig| EX["Executor<br/>report: simuliert<br/>immobilien: ueber den Security Core"]
 ```
 
 Der Agent erreicht die Aussenwelt an keiner Stelle direkt. Die Angriffsflaeche schrumpft von
@@ -145,8 +145,11 @@ Zeitüberschreitung, unklare Antwort) → sofort `FAILED`, ohne automatische Wie
 „alles, was das Netz erlaubt" auf drei schemabegrenzte Formen. Selbst ein vollständig
 übernommenes Modell kann weder eine beliebige URL aufrufen noch beliebige Daten senden.
 
-**Heute simuliert der Worker nur.** Bevor echte Executor angeschlossen werden, muss Phase 2
-abgeschlossen sein — siehe §7.
+**Der Worker führt über einen Executor aus** (ADR-0031). `report` bleibt simuliert.
+`PUBLISH_LISTING` der Domäne `immobilien` geht über den Security Core an ein Scheinportal;
+den Portalschlüssel hält nur die Vertrauensseite, nie der Prozess von agentic-starter
+(Stand und Nachweise: `docs/kern-integration.md`). Die Vorbedingung aus Phase 2 — eine
+Ablehnung stoppt die Veröffentlichung — ist erfüllt, siehe §7.
 
 ## 7. HITL: die zentrale Zusage
 
@@ -160,8 +163,14 @@ Umgesetzt über `interruptBefore` vor `human_approval`.
 > Verifiziert durch Ausführen mit `approved: false` — Artefaktstatus bleibt
 > `AWAITING_APPROVAL`, die Queue ist leer, der Runner meldet `REJECTED`.
 >
-> **Echte Executor bleiben trotzdem außerhalb von v1** (`PRODUCT.md` §5.2). Die Zusage
-> gilt jetzt im Code; ihre Messung entsteht erst in Phase 3 (`EVALS.md` §3.1–3.2).
+> Die Zusage gilt im Code; ihre Messung entsteht in Phase 3 (`EVALS.md` §3.1–3.2).
+>
+> **Seit dem ersten echten Executor (ADR-0031) gilt eine Einschränkung:** HITL ist eine
+> Inhaltsfreigabe innerhalb von agentic-starter, kein Sicherheitstor. Der Security Core
+> erlaubt heute jede gültige Aktion; wer seinen Socket öffnen kann, veröffentlicht ohne
+> Freigabe — auch kompromittierter Code auf der Agentenseite. Die Zusage hält gegen ein
+> fehlgeleitetes Modell, nicht gegen kompromittierten Code. Eine Sicherheitsfreigabe
+> außerhalb des Agenten ist Arbeit des Kerns (TB-3, Stufe 6 in `docs/kern-integration.md`).
 
 ## 8. Zusammenfassung: worauf man sich heute verlassen kann
 

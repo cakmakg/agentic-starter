@@ -8,8 +8,9 @@
 
 > ⚠️ **Bewusste Wortwahl: „production-patterned", nicht „production-ready".**
 > Die Muster sind produktionsreif; dieses Repo ist es nicht. Der Artefakt-Speicher ist eine
-> `Map` im Arbeitsspeicher, der Checkpointer ist `MemorySaver`, die Action-Executor sind
-> simuliert, und es gibt genau einen Tenant. Das sind bewusste Nicht-Ziele für v1 —
+> `Map` im Arbeitsspeicher, der Checkpointer ist `MemorySaver`, die Action-Executor von
+> `report` sind simuliert (`PUBLISH_LISTING` geht über den Security Core an ein
+> Scheinportal, ADR-0031), und es gibt genau einen Tenant. Das sind bewusste Nicht-Ziele für v1 —
 > siehe [`PRODUCT.md`](PRODUCT.md) §5.2.
 
 ---
@@ -58,8 +59,25 @@ Für ein echtes LLM: `cp .env.example .env` → `ANTHROPIC_API_KEY` hinzufügen 
 Als Server: `npm start` → `POST /api/run` (siehe unten).
 
 Zweite Domäne (Phase 5, gegen eine Entwicklungs-Fixture, kein echter Datensatz):
-`npm run demo:immobilien` — `portfolioLoader → listingWriter ⇄ contractChecker →
-listingStore → human_approval → delivery`.
+`portfolioLoader → listingWriter ⇄ contractChecker → listingStore → human_approval →
+delivery`, danach Worker → Security Core → Scheinportal (ADR-0031). Drei Prozesse, je ein
+Terminal — unter Windows statt der Socket-Pfade Named Pipes wie `\\.\pipe\as-kern`, in
+PowerShell gesetzt (Git Bash verliert einen der führenden Backslashes, der Pfad wird dann
+abgelehnt):
+
+```bash
+# einmal, außerhalb des Repos: Portalschlüssel (nur für den Kern) und sein Hash (nur fürs Portal)
+node -e "const c=require('node:crypto'),fs=require('node:fs');const k='asp_'+c.randomBytes(32).toString('hex');fs.writeFileSync('portal.key',k);fs.writeFileSync('portal.hash',c.createHash('sha256').update(k).digest('hex'))"
+
+PORTAL_SOCKET=/tmp/as-portal.sock PORTAL_CREDENTIAL_HASH_FILE=portal.hash node src/bin/fakePortal.js
+CORE_SOCKET=/tmp/as-kern.sock PORTAL_SOCKET=/tmp/as-portal.sock PORTAL_CREDENTIAL_FILE=portal.key node src/bin/securityCore.js
+SECURITY_CORE_SOCKET=/tmp/as-kern.sock npm run demo:immobilien   # Exit 0 nur, wenn alle drei DONE sind
+```
+
+Ohne `SECURITY_CORE_SOCKET` endet die Demo sofort mit Exit 1. Der Worker führt auch
+Aktionen früherer Läufe aus, die noch `PENDING` sind — für einen sauberen Lauf `STATE_DIR`
+auf ein frisches Verzeichnis setzen. Der lokale Lauf belegt Funktion, keine Trennung: alle
+drei Prozesse laufen unter einem Benutzer (`docs/kern-integration.md` §2.6).
 
 ---
 
@@ -165,9 +183,9 @@ Graph-Topologie, MCP-Sequenz · [`docs/workflow.md`](docs/workflow.md) — HITL-
 | `adapters/http/server.js` | HTTP-Routen — reiner Adapter über dem Kern |
 | `adapters/portal/publishListing.js` | Tool Adapter `publish_listing` — Vertrauensseite, läuft im Security Core (ADR-0031) |
 | `adapters/portal/fakePortal.js` · `bin/fakePortal.js` | Scheinportal — jede Wirkung nur mit Schlüssel (ADR-0031) |
-| `adapters/security-core/client.js` | TB-1-Client — die Agentenseite fragt eine Wirkung nur hier an (ADR-0031) |
+| `adapters/security-core/client.js` | TB-1-Client — die Agentenseite fragt eine Wirkung nur hier an; `kernExecutor` setzt ihn als Executor des Workers ein (ADR-0031) |
 | `bin/securityCore.js` | Startet den Security Core mit `publish_listing` — Vertrauensseite (ADR-0031) |
-| `bin/demo.js` · `bin/demoImmobilien.js` | Ende-zu-Ende-Demo je Domäne, ohne HTTP |
+| `bin/demo.js` · `bin/demoImmobilien.js` | Ende-zu-Ende-Demo je Domäne, ohne HTTP; `demoImmobilien.js` führt über den Security Core aus |
 | `bin/serve.js` | HTTP-Server-Start |
 
 Vollständiger Zielbaum mit Begründung der Naht: [`ARCHITECTURE.md`](ARCHITECTURE.md) §6.
@@ -220,7 +238,7 @@ Domäne und echten Kunden nicht belegbar. Die Tabelle steht in Ausführungsreihe
 | 1 · Vertrag | Produkt- und Architekturvertrag, 25 ADRs | ✅ |
 | 2 · Stabilisieren | Goldener Pfad + minimaler Trace · Zeit-Baseline des manuellen Prozesses | 🟢 Defekte behoben, Trace grün; Kundenspur offen |
 | 3 · Messen | Tests, Evaluations-Baseline (Schicht A), minimales CI, Umzug in die Zielstruktur | ✅ T3–T6 grün, Umzug erfolgt |
-| 5 · Produkt | Erste echte Domäne, Persistenz, echter Executor, Genehmigungsbildschirm | 🟡 Domäne `immobilien` als Skelett steht, T10 grün (`npm run demo:immobilien`); Persistenz, echter Executor, echter Lauf (T11/T12) offen |
+| 5 · Produkt | Erste echte Domäne, Persistenz, echter Executor, Genehmigungsbildschirm | 🟡 Domäne `immobilien` als Skelett steht, T10 grün (`npm run demo:immobilien`); echter Executor lokal über den Security Core an ein Scheinportal (ADR-0031); Persistenz, echter Lauf (T11/T12) offen |
 | 4 · Veröffentlichen | Schicht B, CI, Lizenz, Case Study, MCP-Server | ⏳ |
 | 6 · Skalieren | Mehrmandantenfähigkeit, zweite Domäne, Kontextstrategie | ⏳ nur bei einem zweiten Kunden |
 

@@ -33,6 +33,11 @@ export const env = {
   // auf ein frisches Verzeichnis, sonst schleppt ein Lauf den vorigen mit und
   // der Determinismus-Nachweis wäre keiner mehr.
   stateDir: process.env.STATE_DIR || path.join(process.cwd(), ".zustand"),
+
+  // Der TB-1-Socket des Security Core — die einzige Angabe, die die Agentenseite
+  // über den Kern kennt (ADR-0031 Teil 3). Kein Standardwert: ohne ihn startet
+  // kein Worker, der über den Kern ausführt.
+  securityCoreSocket: process.env.SECURITY_CORE_SOCKET || "",
 };
 
 // Fehlt der LLM-Schlüssel, greift der "Mock-Modus": es wird kein echter Aufruf

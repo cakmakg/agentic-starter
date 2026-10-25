@@ -184,7 +184,7 @@ sie kennen.
 |---|---|---|
 | ~~`MemorySaver` im Arbeitsspeicher~~ | ~~Bei einem Neustart gehen auf HITL wartende Workflows verloren.~~ **Behoben in Phase 5 (T11):** `DateiCheckpointer` erbt von `MemorySaver` und ergänzt Anhängen/Abspielen. Nachweis: `tests/integration/persistence.test.js` startet **zwei echte Prozesse** | ✅ behoben |
 | ~~Artefakt-Store ist eine `Map`~~ | ~~Dasselbe für gespeicherte Berichte.~~ **Behoben in Phase 5 (T11):** `createArtifactStore` in beiden Domänen; die nach außen sichtbaren Signaturen blieben unverändert | ✅ behoben |
-| Action-Executor simuliert | Es wird nichts wirklich zugestellt | Phase 5 |
+| ~~Action-Executor simuliert~~ | ~~Es wird nichts wirklich zugestellt.~~ **Teilweise behoben in Phase 5 (ADR-0031):** `PUBLISH_LISTING` geht über den Security Core an ein Scheinportal, lokal unter einem Benutzer belegt. Offen: `report` bleibt simuliert; das echte Portal ist Stufe 2, die Trennung der Benutzer belegt erst der WSL2-Lauf (`docs/kern-integration.md`) | 🟡 teilweise |
 | Ein einziger Tenant | `tenantId` steht seit Phase 5 in jeder Zeile und filtert **jede** Lesung (ADR-0025) — aber es gibt weiterhin nur einen Mandanten, kein SSO, kein Onboarding | Trennung Phase 6: die Werte vervielfachen sich, die Abfragen bleiben unverändert |
 | Puffer-GC deckt den HITL-Pfad nicht ab | Kleines Speicherleck bei langlaufenden Servern | Phase 2 |
 | `res.content` wird als String angenommen | Im echten LLM-Modus möglich: `[object Object]` | Phase 2 |
@@ -233,9 +233,10 @@ Produkt rückt vor die Veröffentlichung. Die folgende Liste steht in Ausführun
   Aufnehmen der Domäne änderte sich unter `src/kernel/` **keine Zeile** (T10, verifiziert
   2026-09-03). Das Skelett (`portfolioLoader → listingWriter ⇄ contractChecker →
   listingStore → human_approval → delivery`, §6) läuft Ende-zu-Ende gegen eine
-  Entwicklungs-Fixture (`npm run demo:immobilien`). Offen bleiben Persistenz
-  (Checkpointer und Artefakt-Store, mit `tenantId` nach ADR-0025, T11), der erste echte
-  Executor, ein schlanker Genehmigungsbildschirm, und T12 — ein echter, von einer
+  Entwicklungs-Fixture (`npm run demo:immobilien`). Der erste echte Executor läuft seit
+  ADR-0031 über den Security Core an ein Scheinportal (`docs/kern-integration.md`). Offen
+  bleiben Persistenz (Checkpointer und Artefakt-Store, mit `tenantId` nach ADR-0025, T11),
+  ein schlanker Genehmigungsbildschirm, und T12 — ein echter, von einer
   Beraterin oder einem Berater genehmigter Lauf gegen einen echten Portfolio-Datensatz.
 - **Phase 4** stellt den MCP-Server daneben (§7, ADR-0022) — derselbe Kern, zweiter Kanal —
   und ergänzt die Judge-Maschine der Schicht B sowie die Fallstudie, die jetzt echte
@@ -321,7 +322,7 @@ src/
 │       ├── agents/             portfolioLoader · listingWriter · contractChecker ·
 │       │                       listingStore · delivery
 │       ├── prompts.js          Prompts je Agent/Portal
-│       ├── actions.js          Whitelist: PUBLISH_LISTING
+│       ├── actions.js          Whitelist: PUBLISH_LISTING · Kernname publish_listing
 │       └── data/portfolioFixture.js  Entwicklungs-Fixture — KEIN echter Datensatz (T12 offen)
 │
 ├── adapters/
@@ -331,12 +332,14 @@ src/
 │   │   ├── publishListing.js   Tool Adapter · VERTRAUENSSEITE, läuft im Prozess des Security Core
 │   │   └── fakePortal.js       Scheinportal · AUSSENWELT, steht für ein echtes Portal
 │   ├── security-core/          ✅ Phase 5 (ADR-0031)
-│   │   └── client.js           TB-1-Client · AGENTENSEITE, die einzige Art, eine Wirkung anzufragen
+│   │   └── client.js           TB-1-Client · AGENTENSEITE, die einzige Art, eine Wirkung anzufragen;
+│   │                           kernExecutor setzt ihn als Executor des Workers ein
 │   └── mcp/                    ⏳ Phase 4 (ADR-0022)
 │
 └── bin/
     ├── demo.js
-    ├── demoImmobilien.js       ✅ Phase 5 — golden path der Domäne immobilien
+    ├── demoImmobilien.js       ✅ Phase 5 — golden path der Domäne immobilien; Agentenseite
+    │                           des MVP, führt über den Kern aus (ADR-0031)
     ├── fakePortal.js           ✅ Phase 5 (ADR-0031) — Prozess des Scheinportals
     ├── securityCore.js         ✅ Phase 5 (ADR-0031) — Einstieg der Vertrauensseite
     └── serve.js

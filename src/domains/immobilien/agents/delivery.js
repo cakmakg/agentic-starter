@@ -3,10 +3,12 @@
 //
 //   AGENTEN RUFEN NIEMALS DIREKT EINE EXTERNE API AUF.
 //
-// delivery SCHREIBT nur in die ActionQueue, je Portal ein Eintrag. Der echte
-// Portal-Aufruf (offizielle API/Import-Schnittstelle statt Scraping, siehe
-// docs/kundenerkundung-immobilien.md §5) ist ein separater, noch nicht
-// gebauter Executor — heute simuliert der Queue-Worker nur (EXTEND.md §6).
+// delivery SCHREIBT nur in die ActionQueue, je Portal ein Eintrag. Ausgeführt
+// wird über den Security Core (ADR-0031): der Worker fragt `publish_listing` an,
+// der Tool Adapter auf der Vertrauensseite spricht heute ein Scheinportal an.
+// Das echte Portal (offizielle API/Import-Schnittstelle statt Scraping, siehe
+// docs/kundenerkundung-immobilien.md §5) ist Stufe 2 in docs/kern-integration.md.
+// DELIVERED heißt deshalb „eingereiht", nicht „veröffentlicht" (ADR-0031 Teil 8).
 
 import { enqueueAction } from "../actions.js";
 import { markDelivered } from "./listingStore.js";

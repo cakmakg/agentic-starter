@@ -104,3 +104,18 @@ export function frageKern(
     req.end(body);
   });
 }
+
+// Ein Executor für den Action-Worker (ADR-0031 Teil 7): übersetzt den Queue-Typ
+// in den Namen, unter dem der Kern die Aktion kennt, und gibt das Payload
+// unverändert als `arguments` weiter. Die Zuordnung bringt der Aufrufer mit —
+// der Client kennt keine Domäne. Ein Typ ohne Kernnamen wird nicht gesendet und
+// ergibt `failed`: `rejected` sagt nur der Kern.
+export function kernExecutor({ socketPath, kernNamen }) {
+  return async ({ actionType, payload }) => {
+    const name = Object.hasOwn(kernNamen, actionType)
+      ? kernNamen[actionType]
+      : undefined;
+    if (typeof name !== "string") return FAILED;
+    return frageKern(socketPath, name, payload);
+  };
+}
