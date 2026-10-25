@@ -109,6 +109,11 @@ und ändert **null Zeilen** unter `src/kernel/` (T10, verifiziert in Phase 5).
 Die Dateigrenze gilt für `src/kernel/` (≤ 20 Dateien, ADR-0021), nicht für `src/`
 insgesamt.
 
+Quer zu den Ringen verläuft seit ADR-0031 die **Vertrauenslinie** (`ARCHITECTURE.md` §6):
+Code, der den Portalschlüssel hält, importiert nur `node:*` und die Naht `start.ts` des
+Security Core; die Agentenseite importiert ihn nie. `vendor/security-core/` wird nie
+verändert — `tests/kernPin.test.js` prüft das.
+
 ## Gedächtnisprotokoll
 
 In diesem Projekt gibt es **keinen** automatischen Compiler: das Gedächtnis schreibst du.

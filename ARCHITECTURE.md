@@ -327,13 +327,34 @@ src/
 ├── adapters/
 │   ├── http/
 │   │   └── server.js           Routen; `listen` steht in bin/serve.js
+│   ├── portal/                 ✅ Phase 5 (ADR-0031) — zwei Seiten in einem Verzeichnis
+│   │   ├── publishListing.js   Tool Adapter · VERTRAUENSSEITE, läuft im Prozess des Security Core
+│   │   └── fakePortal.js       Scheinportal · AUSSENWELT, steht für ein echtes Portal
 │   └── mcp/                    ⏳ Phase 4 (ADR-0022)
 │
 └── bin/
     ├── demo.js
     ├── demoImmobilien.js       ✅ Phase 5 — golden path der Domäne immobilien
+    ├── fakePortal.js           ✅ Phase 5 (ADR-0031) — Prozess des Scheinportals
     └── serve.js
+
+vendor/
+└── security-core/              Security Core als Git-Submodul, gepinnt und unverändert (ADR-0031)
 ```
+
+### Die Vertrauenslinie (ADR-0031)
+
+Quer zu den drei Ringen verläuft seit Phase 5 eine zweite Grenze: **wer den Portalschlüssel
+hält.** Die Ringe sagen, was Mechanik und was Bedeutung ist; die Vertrauenslinie sagt, welcher
+Prozess welchem Code vertrauen muss.
+
+| Seite | Dateien | Darf importieren |
+|---|---|---|
+| **Vertrauensseite** | `adapters/portal/publishListing.js` · `vendor/security-core/` | nur `node:*`, die Naht `start.ts` und eigene Dateien |
+| **Außenwelt** | `adapters/portal/fakePortal.js` · `bin/fakePortal.js` | — steht für ein fremdes System; ADR-0031 regelt nur die beiden anderen Seiten |
+| **Agentenseite** | alles übrige unter `src/` | nichts von den beiden anderen Seiten, nichts aus `vendor/` |
+
+Was davon schon gebaut ist und welche Teile noch fehlen, steht in `docs/kern-integration.md`.
 
 ### Die Naht ist an drei Stellen fein
 

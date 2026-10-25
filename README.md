@@ -163,6 +163,8 @@ Graph-Topologie, MCP-Sequenz · [`docs/workflow.md`](docs/workflow.md) — HITL-
 | `domains/report/` | Erste Domäne: `researcher → writer ⇄ critic → fileSaver → publisher` |
 | `domains/immobilien/` | Zweite Domäne (Phase 5, T10): `portfolioLoader → listingWriter ⇄ contractChecker → listingStore → delivery` |
 | `adapters/http/server.js` | HTTP-Routen — reiner Adapter über dem Kern |
+| `adapters/portal/publishListing.js` | Tool Adapter `publish_listing` — Vertrauensseite, läuft im Security Core (ADR-0031) |
+| `adapters/portal/fakePortal.js` · `bin/fakePortal.js` | Scheinportal — jede Wirkung nur mit Schlüssel (ADR-0031) |
 | `bin/demo.js` · `bin/demoImmobilien.js` | Ende-zu-Ende-Demo je Domäne, ohne HTTP |
 | `bin/serve.js` | HTTP-Server-Start |
 
@@ -178,7 +180,7 @@ Vollständiger Zielbaum mit Begründung der Naht: [`ARCHITECTURE.md`](ARCHITECTU
 | `.gehirn/` | Projektgedächtnis über Sitzungen hinweg (Kern, Regeln, offene Themen) |
 | `.claude/hooks/` | `SessionStart`-Hook, der das Gedächtnis in den Kontext injiziert |
 | `.claude/skills/projekt-doktor/` | Gesundheitscheck: 14 Prüfungen, vier davon Phasen-Gates |
-| [`ARCHITECTURE.md`](ARCHITECTURE.md) · [`DECISIONS.md`](DECISIONS.md) | Trade-offs und bekannte Grenzen · 28 festgehaltene Entscheidungen |
+| [`ARCHITECTURE.md`](ARCHITECTURE.md) · [`DECISIONS.md`](DECISIONS.md) | Trade-offs und bekannte Grenzen · 31 festgehaltene Entscheidungen |
 | [`EVALS.md`](EVALS.md) | Evaluationsrahmen: zwei Schichten, Metriken mit Zähler und Nenner, Baseline |
 | `docs/` | Ablauf, Sicherheitsmodell, Entwicklungsprozess |
 | `tests/` | `node:test`, 15 Dateien · 120 Tests, keine zusätzliche Abhängigkeit (`npm test`) |
