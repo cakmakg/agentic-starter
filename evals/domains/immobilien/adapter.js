@@ -28,6 +28,11 @@ import {
 
 const hier = path.dirname(fileURLToPath(import.meta.url));
 
+// Schicht A misst Tor 1 und Tor 2, nicht die Wirkung (ADR-0031 Teil 6): der
+// Test-Executor antwortet wie der Kern auf eine ausgeführte Aktion. Die Wirkung
+// über den Kern belegt der Integrationstest.
+const testExecutor = async () => ({ outcome: "executed", result: {} });
+
 export const adapter = {
   name: immobilienDomain.name,
   eingang: immobilienDomain.entry,
@@ -39,7 +44,13 @@ export const adapter = {
   // Abfrage im Adapter statt im Runner.
   artefaktstatus: (threadId) => getListingArtifact(threadId)?.status ?? null,
 
-  aktionen: { enqueueAction, getQueue, startActionWorker, stopActionWorker },
+  aktionen: {
+    enqueueAction,
+    getQueue,
+    startActionWorker,
+    stopActionWorker,
+    executor: testExecutor,
+  },
 
   datensatz: JSON.parse(
     fs.readFileSync(path.join(hier, "golden", "tasks.json"), "utf8"),

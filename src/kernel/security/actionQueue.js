@@ -62,6 +62,7 @@ export function createActionQueue({ whitelist, validators, logName }) {
   let timer = null;
   let laeuft = false; // ein Worker-Durchgang zur Zeit
   let geladen = false;
+  let executor = null; // kommt mit startActionWorker, nicht mit der Queue
 
   // Erst beim ersten Zugriff, nicht beim Import: das Laden eines Moduls soll
   // keine Dateien anfassen. Ohne logName bleibt die Queue flüchtig — so kann
@@ -155,9 +156,13 @@ export function createActionQueue({ whitelist, validators, logName }) {
     }
 
     try {
-      // HIER fände der echte externe Aufruf statt (fetch + hartes Timeout).
-      // Im Starter nur simuliert.
-      // await fetch(...);
+      // Der Executor bekommt nur, was die Wirkung braucht: threadId und
+      // idempotencyKey verlassen die Queue nicht (ADR-0031 Teil 7). Eine Kopie,
+      // damit er das eingereihte Payload nicht verändern kann.
+      await executor({
+        actionType: action.actionType,
+        payload: structuredClone(action.payload),
+      });
       statusSetzen(action, "DONE");
     } catch {
       if (action.attempts >= 3) statusSetzen(action, "FAILED");
@@ -165,8 +170,16 @@ export function createActionQueue({ whitelist, validators, logName }) {
     }
   }
 
-  function startActionWorker(intervalMs = 5000) {
+  // Der Executor ist Pflicht und kommt mit dem Start, nicht mit der Queue
+  // (ADR-0031 Teil 6): die Queue ist ein Singleton der Domäne, und eine Domäne
+  // importiert keinen Adapter. Ohne Executor kein Worker — kein versteckter
+  // Standard, kein Zweig „Mock oder echt".
+  function startActionWorker({ executor: ausfuehren, intervalMs = 5000 } = {}) {
+    if (typeof ausfuehren !== "function") {
+      throw new Error("startActionWorker braucht einen Executor");
+    }
     if (timer) return;
+    executor = ausfuehren;
     timer = setInterval(async () => {
       // Ohne diese Sperre kann der nächste Takt starten, während der vorige noch
       // auf einen Aufruf wartet — und dieselbe PENDING-Aktion ein zweites Mal

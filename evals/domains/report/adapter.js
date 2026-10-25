@@ -20,6 +20,7 @@ import { getArtifact } from "../../../src/domains/report/agents/fileSaver.js";
 import {
   enqueueAction,
   getQueue,
+  simulationsExecutor,
   startActionWorker,
   stopActionWorker,
 } from "../../../src/domains/report/actions.js";
@@ -42,7 +43,13 @@ export const adapter = {
   // `immobilien` liefert aus. Der Runner vergleicht nur Zeichenketten.
   artefaktstatus: (threadId) => getArtifact(threadId)?.status ?? null,
 
-  aktionen: { enqueueAction, getQueue, startActionWorker, stopActionWorker },
+  aktionen: {
+    enqueueAction,
+    getQueue,
+    startActionWorker,
+    stopActionWorker,
+    executor: simulationsExecutor,
+  },
 
   datensatz: JSON.parse(
     fs.readFileSync(path.join(hier, "golden", "tasks.json"), "utf8"),

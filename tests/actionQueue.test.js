@@ -18,6 +18,7 @@ import assert from "node:assert/strict";
 import {
   enqueueAction,
   getQueue,
+  simulationsExecutor,
   startActionWorker,
   stopActionWorker,
 } from "../src/domains/report/actions.js";
@@ -92,7 +93,7 @@ test("TOR 2: der Worker führt gültige Payloads aus und lehnt ungültige ab", a
     payload: { to: "ohne-at-zeichen", body: "hi" },
   });
 
-  startActionWorker(5);
+  startActionWorker({ executor: simulationsExecutor, intervalMs: 5 });
   await warte(80);
 
   assert.equal(finde(gueltig).status, "DONE");
@@ -102,8 +103,8 @@ test("TOR 2: der Worker führt gültige Payloads aus und lehnt ungültige ab", a
 });
 
 test("startActionWorker ist idempotent — ein zweiter Aufruf legt keinen zweiten Timer an", async () => {
-  startActionWorker(5);
-  startActionWorker(5);
+  startActionWorker({ executor: simulationsExecutor, intervalMs: 5 });
+  startActionWorker({ executor: simulationsExecutor, intervalMs: 5 });
   stopActionWorker();
   const id = enqueueAction({
     threadId: "t4",

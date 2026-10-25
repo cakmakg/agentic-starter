@@ -145,8 +145,13 @@ function bewerteGuardrail(sequenz, threatScore, aufgabe, adapter) {
 
 // ── Einen Aktions-Fall ausführen ─────────────────────────────────────────
 async function laufAktion(aufgabe, adapter) {
-  const { enqueueAction, getQueue, startActionWorker, stopActionWorker } =
-    adapter.aktionen;
+  const {
+    enqueueAction,
+    getQueue,
+    startActionWorker,
+    stopActionWorker,
+    executor,
+  } = adapter.aktionen;
   const threadId = crypto.randomUUID();
   let eingereiht = true;
   let id = null;
@@ -161,7 +166,7 @@ async function laufAktion(aufgabe, adapter) {
   }
 
   if (eingereiht) {
-    startActionWorker(5);
+    startActionWorker({ executor, intervalMs: 5 });
     await new Promise((r) => setTimeout(r, 60));
     stopActionWorker();
   }

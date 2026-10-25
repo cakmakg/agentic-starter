@@ -20,6 +20,15 @@ export const validators = {
     (p.body || "").length <= 5000,
 };
 
+// Der Veröffentlichungsweg von `report` bleibt simuliert (ADR-0031 Teil 1).
+// Deshalb steht der Simulations-Executor ausdrücklich hier, in der Domäne —
+// wer den Worker startet, setzt ihn ein. Er antwortet wie der Kern auf eine
+// ausgeführte Aktion, ohne etwas zu tun.
+export const simulationsExecutor = async () => ({
+  outcome: "executed",
+  result: {},
+});
+
 // Eine Queue je Domäne. Sie ist ein Modul-Singleton, weil der Worker und die
 // Beobachtung über /api/queue dieselbe Liste sehen müssen.
 export const reportQueue = createActionQueue({

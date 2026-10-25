@@ -5,9 +5,12 @@
 
 import { env } from "../kernel/config/env.js";
 import { app } from "../adapters/http/server.js";
-import { startActionWorker } from "../domains/report/actions.js";
+import {
+  simulationsExecutor,
+  startActionWorker,
+} from "../domains/report/actions.js";
 
-startActionWorker();
+startActionWorker({ executor: simulationsExecutor });
 app.listen(env.port, () =>
   console.log(
     `agentic-starter läuft → http://localhost:${env.port}  (LLM: ${env.anthropicKey ? "echt" : "MOCK"})`,
