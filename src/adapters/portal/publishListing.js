@@ -93,7 +93,7 @@ function postListing(socketPath, credential, body, timeoutMs) {
         });
         res.on("end", () => {
           clearTimeout(frist);
-          if (zuGross) reject(new Error("unexpected portal response"));
+          if (zuGross) reject(new Error("unerwartete Portalantwort"));
           else resolve({ status: res.statusCode, body: Buffer.concat(teile) });
         });
         res.on("error", () => {});
@@ -102,12 +102,12 @@ function postListing(socketPath, credential, body, timeoutMs) {
     const frist = setTimeout(() => req.destroy(), timeoutMs);
     req.on("error", () => {
       clearTimeout(frist);
-      reject(new Error("portal not reachable"));
+      reject(new Error("Portal nicht erreichbar"));
     });
     req.on("close", () => {
       clearTimeout(frist);
       // nach resolve wirkungslos
-      reject(new Error(zuGross ? "unexpected portal response" : "portal not reachable"));
+      reject(new Error(zuGross ? "unerwartete Portalantwort" : "Portal nicht erreichbar"));
     });
     req.end(body);
   });
@@ -124,7 +124,7 @@ export function createPublishListingAdapter({
     async execute(args) {
       const gueltig = parseArguments(args);
       if (gueltig === undefined)
-        throw new Error("arguments failed re-validation");
+        throw new Error("Argumente bei erneuter Prüfung ungültig");
 
       const antwort = await postListing(
         socketPath,
@@ -133,7 +133,7 @@ export function createPublishListingAdapter({
         timeoutMs,
       );
       if (antwort.status !== 200)
-        throw new Error("portal did not confirm the listing");
+        throw new Error("Portal hat das Inserat nicht bestätigt");
 
       let wert;
       try {
@@ -141,14 +141,14 @@ export function createPublishListingAdapter({
           new TextDecoder("utf-8", { fatal: true }).decode(antwort.body),
         );
       } catch {
-        throw new Error("unexpected portal response");
+        throw new Error("unerwartete Portalantwort");
       }
       const listingId =
         typeof wert === "object" && wert !== null && !Array.isArray(wert)
           ? wert.listingId
           : undefined;
       if (!Number.isSafeInteger(listingId) || listingId <= 0) {
-        throw new Error("unexpected portal response");
+        throw new Error("unerwartete Portalantwort");
       }
       return { listingId };
     },

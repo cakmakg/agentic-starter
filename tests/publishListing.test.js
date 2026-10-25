@@ -138,7 +138,7 @@ test("execute prüft selbst noch einmal und schickt bei Ungültigem nichts", asy
   anfragen.length = 0;
   await assert.rejects(
     adapter.execute({ portal: "ebay", text: "x" }),
-    /re-validation/,
+    /erneuter Prüfung/,
   );
   assert.equal(anfragen.length, 0);
 });
@@ -165,12 +165,12 @@ test("das Ergebnis trägt nur listingId, auch wenn das Portal mehr liefert", asy
 
 // ── Kaputte Antworten ────────────────────────────────────────────────────
 for (const [fall, erwartet] of [
-  ["500", /portal did not confirm the listing/],
-  ["kein-json", /unexpected portal response/],
-  ["falscher-typ", /unexpected portal response/],
-  ["null-id", /unexpected portal response/],
-  ["riesig", /unexpected portal response/],
-  ["stumm", /portal not reachable/],
+  ["500", /Portal hat das Inserat nicht bestätigt/],
+  ["kein-json", /unerwartete Portalantwort/],
+  ["falscher-typ", /unerwartete Portalantwort/],
+  ["null-id", /unerwartete Portalantwort/],
+  ["riesig", /unerwartete Portalantwort/],
+  ["stumm", /Portal nicht erreichbar/],
 ]) {
   test(`kaputte Portalantwort (${fall}): fester Fehler, kein Leck`, async () => {
     modus = fall;
@@ -196,7 +196,7 @@ test("Portal nicht erreichbar: fester Fehler, kein Leck", async () => {
   const { wert: fehler, mitschnitt } = await mitMitschnitt(() =>
     fern.execute(GUELTIG).catch((e) => e),
   );
-  assert.match(fehler.message, /portal not reachable/);
+  assert.match(fehler.message, /Portal nicht erreichbar/);
   assert.ok(!enthaeltSchluessel(fehler));
   assert.ok(!mitschnitt.includes(SCHLUESSEL));
 });
@@ -265,7 +265,7 @@ test("Ende zu Ende gegen das Scheinportal: das Inserat ist beobachtbar", async (
     });
     await assert.rejects(
       fremd.execute(GUELTIG),
-      /portal did not confirm the listing/,
+      /Portal hat das Inserat nicht bestätigt/,
     );
     const danach = await anfrage(portal.socketPath, {
       pfad: "/listings",
