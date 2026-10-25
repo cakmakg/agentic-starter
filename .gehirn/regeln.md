@@ -33,12 +33,16 @@ wiederholt.
 
 - **Regel:** Geh Schritt für Schritt vor und frag nach. Nimm nichts an. **Grund:** Das Gerüst
   wird gemeinsam gebaut; in einem Zug erzeugte Dateien zementieren still Entscheidungen,
-  deren Rücknahme teuer ist.
+  deren Rücknahme teuer ist. **Zusatz (2026-10-25):** erst Spec, dann Code auf der
+  einfachsten Stufe; die Grundlage minimal bauen, prüfen, testen — erst dann der nächste
+  Schritt, Einzelheiten darauf. Eine Plan-Freigabe ist keine Freigabe des Inhalts.
 
 - **Regel:** „Fertig" darf erst gesagt werden, wenn der Prüfbefehl durchläuft. Dass eine Datei
   existiert, ist kein Beweis. **Grund:** In Phase 0 waren die Häkchen für Woche 1–2 nach
   Dateiexistenz gesetzt — obwohl beide Wochen ihr eigenes Ziel verfehlten. Genau dieser Fehler
-  ist der Grund, warum es dieses Projekt gibt.
+  ist der Grund, warum es dieses Projekt gibt. **Zusatz (2026-10-25):** ein noch nicht
+  geschriebener Test steht in Plänen als „geplant", nie wie vorhanden; „erledigt" nur mit
+  Commit und Prüfbefehl daneben.
 
 - **Regel:** Neue Dateien entstehen direkt an ihrem Zielort (`ARCHITECTURE.md` §6). Es gibt
   keine vorläufige Ablage. **Grund:** Eine später umgezogene Datei bricht den Vergleich zur
