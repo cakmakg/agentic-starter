@@ -727,7 +727,7 @@ Schritt 1 ist bewusst klein: ein genehmigtes Inserat gelangt über den Kern in e
 
    | Prozess | Seite | Einstieg | Umgebung |
    |---|---|---|---|
-   | Scheinportal | Außenwelt | `src/bin/fakePortal.js` → `src/adapters/portal/fakePortal.js` | `PORTAL_SOCKET`, `PORTAL_CREDENTIAL_FILE` |
+   | Scheinportal | Außenwelt | `src/bin/fakePortal.js` → `src/adapters/portal/fakePortal.js` | `PORTAL_SOCKET`, `PORTAL_CREDENTIAL_HASH_FILE` (Nachtrag) |
    | Security Core mit `publish_listing` | Vertrauensseite | `src/bin/securityCore.js` → `src/adapters/portal/publishListing.js` | `CORE_SOCKET`, `PORTAL_SOCKET`, `PORTAL_CREDENTIAL_FILE` |
    | agentic-starter | Agentenseite | `src/bin/demoImmobilien.js` (später `serve.js`) → `src/adapters/security-core/client.js` | nur `SECURITY_CORE_SOCKET` |
 
@@ -744,9 +744,8 @@ Schritt 1 ist bewusst klein: ein genehmigtes Inserat gelangt über den Kern in e
 4. **Der Schlüssel liegt in einer Datei, die nur die Vertrauensseite liest.** Format: das
    feste Präfix `asp_` und 64 Hex-Zeichen — das Präfix macht ein Leck durch Suche
    auffindbar, ohne den Wert zu kennen (wie `mcc_` im Kern). Gelesen wird er nur von
-   `composeAdapters` in `bin/securityCore.js`. Das Scheinportal muss ihn prüfen können;
-   ob es dazu dieselbe Datei liest (gemeinsame Gruppe von Kern und Portal, Modus `0440`)
-   oder nur ihren Hash hält, wird beim Bau des Portals entschieden. Fehlt die Datei, ist sie
+   `composeAdapters` in `bin/securityCore.js`. Das Scheinportal prüft ihn, hält dafür aber
+   nur seinen SHA-256-Hash (Nachtrag). Fehlt die Datei, ist sie
    unlesbar oder hat sie das falsche Format, wirft `composeAdapters` einen `ConfigError` mit
    festem Text; der Kern beendet sich, bevor TB-1 lauscht, und gibt nie den Inhalt aus. Der
    Schlüssel steht **nie** in einer Umgebungsvariable, in `.env`, in einer `TenantConfig`,
@@ -778,10 +777,13 @@ Schritt 1 ist bewusst klein: ein genehmigtes Inserat gelangt über den Kern in e
    Ein Absturz zwischen Logzeile und Versand ergibt nun `FAILED`, obwohl nichts gesendet
    wurde — die sichere Richtung.
 
-   Tor 1 und Tor 2 bleiben; sie verschärfen nur und erlauben nichts (CC-8). Tor 2 zählt
-   Zeichen (5000), der Kern Bytes (16 KiB je Anfrage): ein Text, den Tor 2 durchlässt, kann
-   als `rejected`/`request_too_large` zurückkommen — dann `REJECTED`, keine Wirkung. Ein
-   Test mit Mehrbyte-Text belegt das.
+   Tor 1 und Tor 2 bleiben; sie verschärfen nur und erlauben nichts (CC-8). Tor 2 und der
+   Adapter zählen `text.length` — UTF-16-Einheiten, keine Zeichen (höchstens 5000; ein Emoji
+   zählt zwei) —, der Kern zählt Bytes (16 KiB je Anfrage). Mehrbyte-Text allein überschreitet
+   die Grenze nie: das Maximum liegt bei 15 077 Bytes (5000 × `€`). Erst Steuerzeichen, die
+   JSON als `\u00XX` schreibt (6 Bytes je Einheit), tun es: ein solcher Text passiert Tor 2
+   und kommt als `rejected`/`request_too_large` zurück — dann `REJECTED`, keine Wirkung. Ein
+   Test mit Steuerzeichen belegt das.
 
 6. **Der Executor ist Pflicht — am Worker, nicht an der Queue.**
    `startActionWorker({ executor, intervalMs })` wirft ohne Executor. An
@@ -813,7 +815,9 @@ Schritt 1 ist bewusst klein: ein genehmigtes Inserat gelangt über den Kern in e
    Bedeutung bleibt (Schicht A vergleicht `DELIVERED`, ADR-0029); sie wird festgehalten,
    nicht umbenannt. Durch Ausführen belegt (2026-10-25): `npm run demo:immobilien` endet
    mit Exit 0 und Artefakt `DELIVERED`, das Queue-Log enthält drei `enqueue`-Zeilen und
-   keine einzige Statuszeile — der Worker von `immobilien` wird heute nirgends gestartet.
+   keine einzige Statuszeile — der Worker von `immobilien` wird im Produktcode (`src/`)
+   nirgends gestartet; nur der Schicht-A-Harness startet ihn für seine Aktionsfälle
+   (`evals/runners/policy.js`).
 
 9. **Die drei Fragen aus CC-6, für das Scheinportal beantwortet.**
    - **Q-25 — trägt das Ergebnis eine Berechtigung?** Nein. Der Adapter gibt nur
@@ -881,8 +885,10 @@ drei Fragen aus Teil 9. Richtlinie, Sicherheitsfreigabe, Audit, Identität — A
 Kerns. Ein echter Executor für `report`. Eine HTTP-Route für `immobilien` (`server.js`
 verdrahtet heute nur `report`) und die Beraterkonsole.
 
-**Stand.** Freigegeben 2026-10-25, kein Code. Der Integrationsplan mit Teilen, Kriterien und
-Nachweisen entsteht als eigenes Dokument (`docs/kern-integration.md`).
+**Stand.** Freigegeben 2026-10-25. Wie weit die Umsetzung ist — Teile, Kriterien, Nachweise —,
+steht nur in `docs/kern-integration.md`. Dieses ADR trägt die Entscheidungen; Einzelheiten
+(Dateien, Variablen, Tests) ändern sich ab hier im Spec, nicht hier — zwei Kopien derselben
+Angabe driften (ADR-0012).
 
 **Nachtrag (2026-10-25, Teil 3): das Scheinportal hält nur den SHA-256-Hash des Schlüssels**
 (`PORTAL_CREDENTIAL_HASH_FILE`, genau 64 Hex-Zeichen) statt der Schlüsseldatei; die Zeile
@@ -891,3 +897,10 @@ des Scheinportals in der Tabelle aus Teil 3 liest damit `PORTAL_SOCKET` und
 nur für den Benutzer des Kerns lesbar" wäre mit einer gemeinsamen Datei (Gruppe, `0440`)
 falsch, weil auch der Benutzer des Portals sie läse. So liegt der Schlüssel an genau einer
 Stelle. Preis: der Operator erzeugt zwei Dateien.
+
+**Berichtigt (2026-10-25)** nach einer Durchsicht gegen Code und Tests: Teil 5 sprach von
+„Zeichen" und „Mehrbyte-Text" — gezählt werden UTF-16-Einheiten, und nur Steuerzeichen
+überschreiten 16 KiB (durch Ausführen gemessen). Teil 8 sagte „nirgends gestartet" — der
+Schicht-A-Harness startet den Worker. „Stand" sagte „kein Code"; Teil 3 und Teil 4 standen
+noch vor dem Nachtrag. Die Stellen sind oben korrigiert und hier benannt, nicht still
+überschrieben.
