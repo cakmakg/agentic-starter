@@ -101,6 +101,22 @@ test("andere Pfade und Methoden: 404", async () => {
   }
 });
 
+// Befund F2a im Kern (minimal-core/test/outcome-integrity.test.ts): Node meldet
+// Fehler beim accept, etwa EMFILE, als "error" des Servers.
+test("F2a: nach zwei Serverfehlern antwortet das Portal weiter und meldet nur den Code", async (t) => {
+  const stderr = t.mock.method(process.stderr, "write", () => true);
+  const fehler = Object.assign(new Error("accept EMFILE"), { code: "EMFILE" });
+  // Ohne Listener beendet schon der erste den Prozess, mit einem einmaligen erst der zweite.
+  portal.server.emit("error", fehler);
+  portal.server.emit("error", fehler);
+  stderr.mock.restore();
+  assert.deepEqual(
+    stderr.mock.calls.map((c) => c.arguments[0]),
+    Array(2).fill("scheinportal: Serverfehler EMFILE\n"),
+  );
+  assert.equal((await beobachten()).status, 200);
+});
+
 // ── Der Prozess (bin/fakePortal.js) ──────────────────────────────────────
 const BIN = path.resolve(
   import.meta.dirname,

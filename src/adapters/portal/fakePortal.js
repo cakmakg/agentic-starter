@@ -126,6 +126,15 @@ export async function startFakePortal({ socketPath, credentialHash }) {
     server.once("error", reject);
     server.listen(socketPath, () => {
       server.off("error", reject);
+      // Nach dem Start beendet ein Serverfehler (etwa EMFILE, wenn Verbindungen
+      // die Deskriptoren des Prozesses erschöpfen) das Portal nicht: es meldet
+      // nur den Code und lauscht weiter. Ein abgestürztes Portal gäbe seinen
+      // Socket-Pfad frei (Befund F2a im Kern, minimal-core/src/shared/http.ts).
+      server.on("error", (fehler) =>
+        process.stderr.write(
+          `scheinportal: Serverfehler ${fehler.code ?? "unbekannt"}\n`,
+        ),
+      );
       // Eigentümer und Gruppe dürfen verbinden, sonst niemand. Wer überhaupt
       // hineinkommt, entscheidet das Verzeichnis (WSL2-Lauf, Teil 5).
       if (unix) fs.chmodSync(socketPath, 0o660);
@@ -135,6 +144,8 @@ export async function startFakePortal({ socketPath, credentialHash }) {
 
   return {
     socketPath,
+    // Der Test von F2a löst daran Serverfehler aus, wie Node sie beim accept meldet.
+    server,
     close: () =>
       new Promise((resolve) => {
         server.close(() => resolve());
