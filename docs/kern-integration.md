@@ -5,7 +5,7 @@
 > Stufen, Kriterien, Stand und Nachweise.
 
 **Gepinnter Kern:** `adapter-seam-v1` = `157bdad8583b4a494643103ed9fcef8e89fe3b53`
-(`https://github.com/cakmakg/AISecuritySystem.git`) · **Zuletzt aktualisiert:** 2026-10-25
+(`https://github.com/cakmakg/AISecuritySystem.git`) · **Zuletzt aktualisiert:** 2026-10-26
 
 Der Pin ändert sich nur durch ein neues ADR (CC-2). Ausführlich wird nur die laufende und
 die nächste Stufe beschrieben; spätere stehen als eine Zeile — früh geschriebene Details
@@ -23,7 +23,7 @@ Plans stehen nur hier; `DECISIONS.md` trägt die Entscheidungen.
 
 | Stufe | Ziel in einem Satz | Vorbedingung im Kern | Stand | Nachweis |
 |---|---|---|---|---|
-| **1 · Scheinportal** | Ein genehmigtes Inserat gelangt über den Kern in ein Scheinportal; der Schlüssel bleibt auf der Vertrauensseite | keine — `adapter-seam-v1` | in Arbeit — Teil 1–4 erledigt, das MVP läuft lokal; Teil 5 offen | ADR-0031 |
+| **1 · Scheinportal** | Ein genehmigtes Inserat gelangt über den Kern in ein Scheinportal; der Schlüssel bleibt auf der Vertrauensseite | keine — `adapter-seam-v1` | in Arbeit — Teil 1–4 erledigt, das MVP läuft lokal; Teil 5 in Arbeit | ADR-0031 |
 | 2 · Echtes Portal | Ein echtes Portal (Sandbox-Konto) über denselben Adapterweg | keine | geplant — nächste | — |
 | 3 · Agent in der Domäne | Der Graph läuft in der Domäne des Launchers | Tag für Modellzugang (Q-26) | geplant | — |
 | 4 · Richtlinie | Das Produkt sagt per Konfiguration, welche Aktionen und Portale erlaubt sind | Tag für Richtlinie (Q-06, AD-09) | geplant | — |
@@ -59,7 +59,7 @@ durchläuft; daneben stehen der Commit und der Befehl.
 | M1 | `npm test` grün, Abdeckungsschwelle 80 % inklusive | erledigt (2026-10-25) | `ddd6901` · `npm test` 187/187, Zeilenabdeckung 94,16 % — bei mir und im Terminal der Nutzerin oder des Nutzers |
 | M2 | Lauf mit drei Prozessen: das genehmigte Inserat steht im Scheinportal, Queue-Status `DONE` mit `listingId` | erledigt (2026-10-25) | `dc1d67a` · `tests/integration/mvp.test.js` „M2" über die echte Demo als dritten Prozess · Lauf in drei PowerShell-Terminals (Named Pipes) durch die Nutzerin oder den Nutzer: drei `DONE`, `listingId` 1–3, Exit 0 |
 | M3 | Ungültige Argumente (unbekanntes Portal, leerer Text, Text mit Steuerzeichen über 16 KiB — Mehrbyte-Text allein erreicht die Grenze nie, ADR-0031 Teil 5) → Kern `rejected` → Queue `REJECTED`, kein Eintrag im Portal | erledigt (2026-10-25) | `dc1d67a` · „M3": unbekanntes Portal → `invalid_arguments`, Steuerzeichen → `request_too_large`, beide vom Kern; leerer Text lehnt schon Tor 2 ab, der Kern wird nicht gefragt — `REJECTED` ohne `reason`. Kein Eintrag im Portal |
-| M4 | Kern nicht erreichbar → `failed` → Queue `FAILED`, keine automatische Wiederholung, kein Eintrag im Portal; Absturz während des Aufrufs → beim Abspielen `FAILED` | erledigt (2026-10-25) | `dc1d67a` · „M4": `FAILED`, `attempts` 1 nach weiteren Takten, kein Eintrag · Absturz: `3a7eb65`, `tests/actionWorker.test.js` · im Terminal: die Nutzerin oder der Nutzer stoppt den Kern, danach drei `FAILED`, je ein Versuch im Log, Exit 1; mit neu gestartetem Kern wieder drei `DONE`. **Lücke:** Exit 1 der Demo bei `FAILED` prüft kein Test |
+| M4 | Kern nicht erreichbar → `failed` → Queue `FAILED`, keine automatische Wiederholung, kein Eintrag im Portal; Absturz während des Aufrufs → beim Abspielen `FAILED` | erledigt (2026-10-25) | `dc1d67a` · „M4": `FAILED`, `attempts` 1 nach weiteren Takten, kein Eintrag · Absturz: `3a7eb65`, `tests/actionWorker.test.js` · im Terminal: die Nutzerin oder der Nutzer stoppt den Kern, danach drei `FAILED`, je ein Versuch im Log, Exit 1; mit neu gestartetem Kern wieder drei `DONE` · Exit 1 der Demo bei `FAILED`: `999efd4`, Test „M4: die Demo mit gestopptem Kern"; Gegenprobe `process.exit(0)` → genau dieser Test rot |
 | M5 | Portalschlüssel nicht im Code und nicht in der Umgebung von agentic-starter (geplanter Strukturtest, Teil 4); nicht lesbar und das Portal nicht erreichbar für den Benutzer von agentic-starter (geplanter WSL2-Lauf, Teil 5) | Code-Teil erledigt (2026-10-25); Umgebung und Trennung offen (Teil 5, C2–C4) | `ddd6901` · `tests/vertrauenslinie.test.js` 5/5: Importe beider Seiten gegen `ARCHITECTURE.md` §6, kein `asp_`+64 Hex und kein `PORTAL_*` auf der Agentenseite. Die Umgebung des Prozesses prüft erst C2 |
 | M6 | Benutzter Kern ist `157bdad…` und unverändert (Test, Teil 2) | erledigt (2026-10-25) | `e19a77c` · `node --test tests/kernPin.test.js` 5/5; Gegenproben: geänderte Datei im Submodul und Checkout von `3d56872` → je genau ein Test rot |
 
@@ -77,7 +77,7 @@ Defekt. Nach Teil 1, 3 und 5 ist ein Kontrollpunkt in der Kern-Sitzung (CC-1 –
 | 4a | **Die Verbindung allein, ohne Queue und ohne Kernel** (§2.3): TB-1-Client `src/adapters/security-core/client.js` · Einstieg der Vertrauensseite `src/bin/securityCore.js` | Client-Test gegen einen Test-Socket · Verbindungstest mit Portal und Kern als Kindprozesse | erledigt (2026-10-25) | `f455266` · `node --test tests/securityCoreClient.test.js tests/integration/kernVerbindung.test.js` 11/11 (zweimal; mit Coverage zweimal ohne Hängen); `npm test` 168/168, Zeilenabdeckung 92,87 %, `client.js` 100 %; Gegenproben: Feldprüfung für `rejected` entfernt → genau der Test „fast richtiges rejected" rot · Portal mit fremdem Hash → „gültig → executed" rot, dazu die zwei Folgetests, die dessen Eintrag zählen |
 | 4b | `src/kernel/` (§2.3) — vier Aufgaben, vier Commits: Executor an `startActionWorker` · Abbildung `executed/rejected/failed` → `DONE/REJECTED/FAILED` · Wegfall der Wiederholung · `PROCESSING` ins Log, beim Abspielen `FAILED` · **im selben Commit wie der Code:** `EXTEND.md` §6 (keine 3 Versuche, kein `TenantConfig`-Schlüssel), `docs/security-model.md` §6 und `ARCHITECTURE.md` §4 (Zeile „`PROCESSING` wandert bewusst NICHT ins Log") | `npm test`; Bericht der Schicht A beider Domänen zeichengleich bis auf den Zeitstempel | erledigt (2026-10-25) | `a38ad4c` · `181da8a` · `90524e7` · `3a7eb65` · je Commit `npm test` grün (171 → 173 → 174 → 175), Zeilenabdeckung 93,41 %, `actionQueue.js` 100 %; `npm run evals` je Commit: Bericht beider Domänen gleich dem vom 2026-09-07 bis auf den Zeitstempel; Gegenproben: sechs Sabotagen, jede macht genau ihren Test rot |
 | 4c | **Zusammensetzen — das MVP** (§2.3): Kernname in `domains/immobilien/actions.js` · Executor und Worker in `bin/demoImmobilien.js` · **im selben Commit wie der Code:** `docs/security-model.md` §7 („Echte Executor bleiben außerhalb von v1") und Abb. 5, `ARCHITECTURE.md` §4 (Zeile „Action-Executor simuliert") und §6, README | MVP-Test mit drei Prozessen (M2–M4 über die Queue) · Strukturtest der Vertrauenslinie (M5, Code) · Lauf in drei Terminals durch die Nutzerin oder den Nutzer | erledigt (2026-10-25) | `11419f9` Helfer · `dc1d67a` MVP · `ddd6901` Vertrauenslinie · `npm test` 187/187, 94,16 % (allein auf `dc1d67a`: 182/182); `npm run evals`: Bericht beider Domänen gleich dem vom 2026-09-07 bis auf den Zeitstempel; Lauf in drei Terminals: drei `DONE`, Exit 0, mit gestopptem Kern drei `FAILED`, Exit 1; Gegenproben: Kernname falsch → M2 und M3 rot (der Kern lehnt dann mit anderem Grund ab) · Socketprüfung der Demo entfernt → genau ihr Test rot · Typprüfung im Executor entfernt → genau ihr Test rot · Adapter-Import auf der Agentenseite → genau der Importtest rot · `PORTAL_SOCKET` in `env.js` → genau der M5-Test rot |
-| 5 | **WSL2-Lauf** (§2.4) · **Vorbedingungen:** CI auf Ubuntu grün · Fehlerhandler des Scheinportals (Befund F2a im Kern, P-20) · eigene, wegwerfbare Distribution (nicht `mc-evidence`) | Prüfungen C1–C6 mit vier Gegenproben; Ergebnisse in `nachweis/<datum>-wsl2/` (geplant) | geplant | — |
+| 5 | **WSL2-Lauf** (§2.4) · **Vorbedingungen:** CI auf Ubuntu grün · Fehlerhandler des Scheinportals (Befund F2a im Kern, P-20) · eigene, wegwerfbare Distribution (nicht `mc-evidence`) | Prüfungen C1–C6 mit vier Gegenproben; Ergebnisse in `nachweis/<datum>-wsl2/` (geplant) | in Arbeit — Vorbedingung 2 erledigt (2026-10-26), D2 entschieden; Vorbedingung 1 offen (nicht gepusht), Vorbedingung 3 offen (Distribution nicht angelegt) | Vorbedingung 2: `1fce57c` · `node --test tests/fakePortal.test.js` 8/8, vor dem Fix rot mit `Error: accept EMFILE`; Gegenprobe `on` → `once` → genau der F2a-Test rot · `npm test` 189/189, Zeilenabdeckung 94,18 % |
 
 Nach Teil 4 **läuft das MVP lokal** — das ist noch keine Trennungsaussage.
 
@@ -153,7 +153,7 @@ Schreiben im Chat gezeigt (`.gehirn/regeln.md`).
    Named Pipe, und der Unix-Zweig von `fakePortal.js` ist ungedeckt.
 2. Fehlerhandler des Scheinportals für den laufenden Server, wie `keepServing` im Kern, mit
    Test: ein abgestürztes Portal gäbe seinen Socket-Pfad frei (Befund F2a), und P-20 hängt
-   daran.
+   daran. **Erledigt (2026-10-26):** `1fce57c`.
 3. Eine neue, wegwerfbare Distribution — **nicht** `mc-evidence` — in der Konfiguration der
    Nachweisumgebung des Kerns: Interop aus, automatisch eingehängte Laufwerke aus, Docker
    Desktop gestoppt, Node 24. Interop aus ist Pflicht: mit Interop startet der Benutzer von
@@ -187,12 +187,27 @@ Schreiben im Chat gezeigt (`.gehirn/regeln.md`).
 `as-agent` in `as-portal-clients` → C4 · Schlüssel in der Umgebung des Agenten → C2 ·
 Installationsverzeichnis schreibbar → C5.
 
+**Zwei Bedingungen an das Skript** (gefunden beim Planen, 2026-10-26):
+
+- Der Agent startet in einem Verzeichnis ohne `.env`, und das Skript prüft das. `env.js`
+  lädt eine `.env` aus dem Arbeitsverzeichnis in `process.env`; C2 liest
+  `/proc/<pid>/environ`, und das zeigt nur die Umgebung beim Start, nicht, was der Loader
+  danach setzt. Beim Kopieren in die Distribution wandert keine `.env` mit.
+- `/etc/as-core` und `/etc/as-portal` sind für `as-agent` durchquerbar (`0755`), damit C3
+  an den Dateien selbst hängt. Mit `0700` bliebe die Gegenprobe „Schlüsseldatei `0444`"
+  grün — C3 hinge am Verzeichnis, und die Gegenprobe bewiese nichts.
+
 **Lauf:** die Nutzerin oder der Nutzer startet das Skript im eigenen Terminal; die Ergebnisse
 landen in `nachweis/<datum>-wsl2/`. Danach: Stand und Nachweis in §2.2, die WSL2-Aussage aus
 §2.6, Kontrollpunkt der Kern-Sitzung.
 
-**Offen (D2):** aus welchem Root-Dateisystem die neue Distribution entsteht.
-`AiSecuritySystem/wslmc-rootfs.tar` liegt vor; sein Inhalt ist nicht geprüft.
+**D2 (entschieden 2026-10-26):** die Distribution `as-nachweis` entsteht aus dem offiziellen
+Image `node:24-bookworm-slim` (`docker create` + `docker export` → `wsl --import`); sein
+Digest steht im Nachweis. Docker Desktop läuft nur für den Export und ist während des Laufs
+gestoppt. **Nicht** `AiSecuritySystem/wslmc-rootfs.tar`: nach der Liste des Archivs ein
+Abzug von `mc-evidence` vom 2026-10-21 — mit dessen Benutzern `mc-*`, installiertem Kern
+und den Schlüsseldateien aus dessen Nachweislauf; aus welchem Image es stammt, ist nicht
+belegt.
 
 ### 2.5 Bekannte Grenzen
 
@@ -244,3 +259,4 @@ landen in `nachweis/<datum>-wsl2/`. Danach: Stand und Nachweis in §2.2, die WSL
 | 2026-10-25 | Teil 4a erledigt — die Verbindung Client → Kern → Adapter → Portal ist zum ersten Mal Ende zu Ende belegt | `f455266`. Beim Bauen gefunden: ein durch Signal beendeter Kindprozess hat `exitCode` `null`; das Aufräumen im Test wartete deshalb unter Coverage endlos — korrigiert vor dem Commit |
 | 2026-10-25 | Teil 4b erledigt — die Queue ruft einen Pflicht-Executor auf, bildet sein Ergebnis ab, wiederholt nicht und liest eine unterbrochene Aktion als `FAILED` | `a38ad4c` `181da8a` `90524e7` `3a7eb65`. Drei freigegebene Abweichungen vom Plan: ins Log kommen `result`/`reason` statt `listingId` (der Kernel bleibt domänenfrei) · `PROCESSING` → `FAILED` beim Abspielen nur im Speicher (Lesen schreibt nicht; ohne Sperre zwischen Prozessen könnte ein geschriebenes `FAILED` hinter einem späteren `DONE` landen) · `docs/security-model.md` §6 mit Aufgabe 3, weil der Satz mit diesem Code falsch wurde |
 | 2026-10-25 | Teil 4c erledigt — das MVP läuft lokal: Demo → Queue → Worker → Kern → Adapter → Scheinportal, drei Prozesse; M1–M4 und der Code-Teil von M5 erledigt, die lokale Aussage aus §2.6 gilt | `11419f9` `dc1d67a` `ddd6901`. Lauf in drei PowerShell-Terminals durch die Nutzerin oder den Nutzer. Offen: kein Test für Exit 1 der Demo bei `FAILED`; der lokale Lauf belegt Funktion, keine Trennung (Teil 5) |
+| 2026-10-26 | Lücke aus M4 geschlossen; Vorbedingung 2 von Teil 5 erledigt; D2 entschieden; zwei Bedingungen an das Skript | `999efd4` Exit 1 der Demo bei `FAILED` · `1fce57c` Fehlerhandler des Scheinportals (F2a). D2: ein sauberes, über den Digest belegtes Image statt eines Abzugs fremder Nachweisläufe. Die zwei Bedingungen machen C2 und die Gegenprobe zu C3 erst aussagekräftig |
