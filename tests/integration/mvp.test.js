@@ -161,3 +161,16 @@ test("M4: Kern gestoppt → FAILED, keine Wiederholung, kein Eintrag im Portal",
   assert.equal(a.attempts, 1);
   assert.equal((await inserate()).length, vorher);
 });
+
+test("M4: die Demo mit gestopptem Kern — drei FAILED, Exit 1, kein Eintrag im Portal", async () => {
+  await stoppe(kern.kind); // schon gestoppt, wenn der Test oben lief
+  const vorher = (await inserate()).length;
+  const r = await laufe(
+    "demoImmobilien.js",
+    demoUmgebung({ SECURITY_CORE_SOCKET: KERN }),
+  );
+  assert.equal(r.code, 1, r.stdout + r.stderr);
+  const zeilen = r.stdout.match(/^ {3}\S+: FAILED$/gm) ?? [];
+  assert.equal(zeilen.length, 3, r.stdout);
+  assert.equal((await inserate()).length, vorher);
+});
