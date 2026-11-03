@@ -158,7 +158,15 @@ Schreiben im Chat gezeigt (`.gehirn/regeln.md`).
    Nachweisumgebung des Kerns: Interop aus, automatisch eingehängte Laufwerke aus, Docker
    Desktop gestoppt, Node 24. Interop aus ist Pflicht: mit Interop startet der Benutzer von
    agentic-starter Windows-Programme und kommt an den Dateirechten der Distribution vorbei
-   (im Kern MA-2, Bedingung f).
+   (im Kern MA-2, Bedingung f). **Erledigt (2026-11-03):** `as-nachweis` aus
+   `node@sha256:c86ecead9e55a5210ac1727de38a4ca840bf03dcaf34dc9749addbf383b1920c`, Export
+   `as-nachweis.tar` SHA256 `808F1D92…FCC52DD0`; Debian 12, Node v24.22.2; WSL 2.4.10.0.
+   Geprüft: `/etc/wsl.conf` mit Automount und Interop aus, kein Laufwerk unter `/mnt`
+   eingehängt (`/proc/mounts`), eine hineingereichte `whoami.exe` läuft nicht (Exit 1,
+   keine Ausgabe), `runuser`/`useradd`/`groupadd`/`gpasswd` vorhanden, `docker-desktop`
+   gestoppt. Der Eintrag `WSLInterop` in `binfmt_misc` zeigt `enabled`, weil er dem
+   gemeinsamen Kernel der WSL-VM gehört — `mc-evidence` zeigt dasselbe; entscheidend ist,
+   dass die Ausführung scheitert.
 
 **Skript** `nachweis/wsl2/pruefen.sh`, als root — es handelt als Operator.
 `minimal-core/deploy/linux/evidence.sh` im Kern ist Vorbild zum Lesen, keine Kopiervorlage.
