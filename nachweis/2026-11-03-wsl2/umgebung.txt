@@ -1,0 +1,38 @@
+== Herkunft
+agentic-starter 364a39e9c7995ff8adce17f71c32e095e669c51a
+security-core 157bdad8583b4a494643103ed9fcef8e89fe3b53 (adapter-seam-v1)
+image node@sha256:c86ecead9e55a5210ac1727de38a4ca840bf03dcaf34dc9749addbf383b1920c
+rootfs-tar-sha256 808f1d92e63235a9b040a3ffc283d9e852d2e74c22c77c3b8064fa95fcc52dd0
+kopiert 2026-11-03T15:24:14+01:00
+== System
+Debian GNU/Linux 12 (bookworm)
+5.15.167.4-microsoft-standard-WSL2
+node v24.22.2 · npm 11.19.1
+== /etc/wsl.conf
+[automount]
+enabled=false
+mountFsTab=false
+
+[interop]
+enabled=false
+appendWindowsPath=false
+== Windows-Laufwerke in /proc/mounts
+keine
+== Lauf
+2026-11-03T15:25:16+01:00
+== Rechte
+drwxr-xr-x root:root /opt/agentic-starter
+drwxr-xr-x root:root /opt/agentic-starter/src/bin
+drwx------ as-agent:as-agent /var/lib/as-agent
+drwxr-s--- as-core:as-core-clients /run/as-core
+drwxr-s--- as-portal:as-portal-clients /run/as-portal
+srw-rw---- as-core:as-core-clients /run/as-core/core.sock
+srw-rw---- as-portal:as-portal-clients /run/as-portal/portal.sock
+drwxr-xr-x root:root /etc/as-core
+drwxr-xr-x root:root /etc/as-portal
+-r-------- as-core:as-core /etc/as-core/portal.key
+-r-------- as-portal:as-portal /etc/as-portal/portal.hash
+== Benutzer
+uid=999(as-agent) gid=999(as-agent) groups=999(as-agent),996(as-core-clients)
+uid=998(as-core) gid=998(as-core) groups=998(as-core),995(as-portal-clients)
+uid=997(as-portal) gid=997(as-portal) groups=997(as-portal)

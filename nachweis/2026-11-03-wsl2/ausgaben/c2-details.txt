@@ -1,0 +1,9 @@
+c1 · Variablen: PATH SECURITY_CORE_SOCKET · cwd: /var/lib/as-agent · Treffer asp_/PORTAL_*: 0
+g1-an · Variablen: PATH SECURITY_CORE_SOCKET · cwd: /var/lib/as-agent · Treffer asp_/PORTAL_*: 0
+g1-zurueck · Variablen: PATH SECURITY_CORE_SOCKET · cwd: /var/lib/as-agent · Treffer asp_/PORTAL_*: 0
+g2-an · Variablen: PATH SECURITY_CORE_SOCKET · cwd: /var/lib/as-agent · Treffer asp_/PORTAL_*: 0
+g2-zurueck · Variablen: PATH SECURITY_CORE_SOCKET · cwd: /var/lib/as-agent · Treffer asp_/PORTAL_*: 0
+g3-an · Variablen: PATH PORTAL_CREDENTIAL SECURITY_CORE_SOCKET · cwd: /var/lib/as-agent · Treffer asp_/PORTAL_*: 1
+g3-zurueck · Variablen: PATH SECURITY_CORE_SOCKET · cwd: /var/lib/as-agent · Treffer asp_/PORTAL_*: 0
+g4-an · Variablen: PATH SECURITY_CORE_SOCKET · cwd: /var/lib/as-agent · Treffer asp_/PORTAL_*: 0
+g4-zurueck · Variablen: PATH SECURITY_CORE_SOCKET · cwd: /var/lib/as-agent · Treffer asp_/PORTAL_*: 0

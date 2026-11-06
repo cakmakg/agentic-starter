@@ -1,0 +1,36 @@
+
+▶  Workflow (immobilien) startet...
+
+   ✅ guardrail: sauber
+   🧠 BREMSE4: kein Objekt geladen → portfolioLoader
+   🏠 portfolioLoader: Objekt geladen (OBJ-001)
+   🧠 BREMSE5: Portale offen → listingWriter
+   ✍️ listingWriter: Inserat für immoscout24 erstellt
+   🧠 BREMSE5: Portale offen → listingWriter
+   ✍️ listingWriter: Inserat für immowelt erstellt
+   🧠 BREMSE5: Portale offen → listingWriter
+   ✍️ listingWriter: Inserat für kleinanzeigen erstellt
+   🧠 BREMSE6a: Inserate ungeprüft → contractChecker
+   📐 contractChecker: Vertrag erfüllt (T8) — alle Zahlen belegt
+   🧠 BREMSE7: Vertrag erfüllt → listingStore
+   💾 listingStore: Inserate gespeichert (AWAITING_APPROVAL)
+   🧠 BREMSE2: Inserate bereit → menschliche Genehmigung
+
+=== workflow_complete: AWAITING_APPROVAL ===
+
+⏸  Der Graph HÄLT bei human_approval (interruptBefore). Artefakt:
+   status: AWAITING_APPROVAL
+
+▶  Der Mensch GENEHMIGT → delivery läuft...
+
+   📡 delivery: Inserate in die Queue gelegt (der Worker validiert und führt aus)
+
+=== workflow_complete: PUBLISHED ===
+
+✓ Artefaktstatus: DELIVERED (eingereiht, nicht veröffentlicht — ADR-0031 Teil 8)
+
+▶  Worker → Security Core...
+
+   immoscout24: DONE · listingId 4
+   immowelt: DONE · listingId 5
+   kleinanzeigen: DONE · listingId 6

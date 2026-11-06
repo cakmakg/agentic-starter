@@ -1,0 +1,23 @@
+Teil 5 — WSL2-Lauf 2026-11-03T15:25:23+01:00
+agentic-starter 364a39e9c7995ff8adce17f71c32e095e669c51a
+
+C1   PASS  Demo als as-agent: Exit 0, 3× DONE, Inserate 0 → 3
+C2   PASS  Variablen: PATH SECURITY_CORE_SOCKET · cwd: /var/lib/as-agent · Treffer asp_/PORTAL_*: 0
+C3   PASS  as-agent liest weder /etc/as-core/portal.key noch /etc/as-portal/portal.hash
+C4   PASS  as-agent öffnet /run/as-portal/portal.sock nicht
+C5   PASS  as-agent schreibt nicht in /opt/agentic-starter
+
+Gegenproben — jede macht genau ihre Prüfung rot; danach zurück auf grün
+G1   PASS  Schlüsseldatei 0444 → C2=gruen C3=rot C4=gruen C5=gruen
+G1z  PASS  Schlüsseldatei wieder 0400 → C2=gruen C3=gruen C4=gruen C5=gruen
+G2   PASS  as-agent in as-portal-clients → C2=gruen C3=gruen C4=rot C5=gruen
+G2z  PASS  as-agent wieder draußen → C2=gruen C3=gruen C4=gruen C5=gruen
+G3   PASS  Schlüssel in der Umgebung des Agenten → C2=rot C3=gruen C4=gruen C5=gruen
+G3z  PASS  Umgebung wieder ohne Schlüssel → C2=gruen C3=gruen C4=gruen C5=gruen
+G4   PASS  Installationsverzeichnis schreibbar → C2=gruen C3=gruen C4=gruen C5=rot
+G4z  PASS  Installationsverzeichnis wieder 0755 → C2=gruen C3=gruen C4=gruen C5=gruen
+
+C6   PASS  Kern gestoppt: Exit 1, 3× FAILED, 0× DONE, Inserate 27 → 27
+S    PASS  Schlüssel in keiner Datei unter /root/nachweis/2026-11-03-wsl2
+
+GESAMT: PASS

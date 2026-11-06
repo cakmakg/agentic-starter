@@ -1,0 +1,2 @@
+ready /run/as-core/core.sock
+Terminated

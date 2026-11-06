@@ -1,0 +1,2 @@
+ready /run/as-portal/portal.sock
+Terminated
