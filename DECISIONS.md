@@ -904,3 +904,11 @@ Stelle. Preis: der Operator erzeugt zwei Dateien.
 Schicht-A-Harness startet den Worker. „Stand" sagte „kein Code"; Teil 3 und Teil 4 standen
 noch vor dem Nachtrag. Die Stellen sind oben korrigiert und hier benannt, nicht still
 überschrieben.
+
+**Nachtrag (2026-11-09, Teil 10): die Aussage nach dem WSL2-Lauf ist eingeschränkt.** Der
+Lauf vom 2026-11-03 trägt das „nur" aus Teil 10 nicht: WSLg war an, und eine Rechteausweitung
+wurde nicht geprüft (Kontrollpunkt der Kern-Sitzung, `docs/kern-integration.md` §4). Es gilt
+die eingeschränkte Fassung aus `docs/kern-integration.md` §2.6: der Portalschlüssel war im
+Lauf für den Benutzer von agentic-starter nicht lesbar, und dieser erreichte das Portal nicht
+direkt. Teil 10 oben bleibt als ursprünglicher Plan stehen und ist hier benannt, nicht still
+überschrieben.

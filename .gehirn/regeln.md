@@ -9,6 +9,14 @@ wiederholt.
 
 ## Regeln
 
+- **Regel (2026-11-09):** Ziel und geplante Arbeit werden auf der **einfachsten, grundlegenden
+  Stufe** geplant und genauso umgesetzt. Ziel ist eine Anwendung, die auf grundlegender Stufe
+  läuft und getestet ist. **Keine Verwicklungen.** Wird eine Prüfung größer als geplant, wird
+  nicht nachgerüstet, sondern angehalten und gefragt. **Grund:** Teil 5 wuchs von „C1–C6" zu
+  einem Nachbau der Kern-Probe (Dateisuche, setuid, Capabilities, D2-Wechsel); dazu zwei
+  eigene Fehler (Lauf vor dem CI-Ergebnis, `guiApplications=false` übergangen), die den Lauf
+  entwerteten. Die Nutzerin oder der Nutzer: „hiçbir karışıklığa girilmeyecek".
+
 - **Regel:** Ändert eine Änderung Struktur, Philosophie oder Ziel des Projekts, werden
   `README.md`, `CLAUDE.md`, `PRODUCT.md`, `ARCHITECTURE.md` **im selben Zug** geprüft und
   aktualisiert — nicht erst auf Nachfrage. **Grund:** Nach dem Bau der Domäne `immobilien`
